@@ -16,6 +16,48 @@ Use the workspace runtime directory for shared tool dependencies:
 Do not install shared browser/runtime dependencies inside client project folders
 unless the project itself declares them as product dependencies.
 
+## Runtime Context
+
+Before applying any topology-specific instruction in this contract (anything
+about how a running project is exposed to whoever views it), check for:
+
+```text
+[WORKSPACE_ROOT]/.bawe-runtime/runtime-context.json
+```
+
+This file is written by the BaweStudio platform, not by the motor and not by
+an LLM executing a skill. It exists because BaweStudio knows a fact about its
+own deployment that the motor cannot detect on its own: whether whoever will
+view a running project is on the same machine as BaweStudio or not.
+
+If the file exists, read it. Starting shape (expect this to evolve once it is
+actually written in practice — treat it as a draft, not a frozen schema):
+
+```json
+{
+  "topology": "local",
+  "public_base_url": ""
+}
+```
+
+- `topology`: `"local"` or `"remote-hosted"`.
+- `public_base_url`: only meaningful when `topology` is `"remote-hosted"`;
+  the public domain/URL to build project-facing links from, instead of
+  `localhost`.
+
+If the file does not exist, assume `topology: "local"`.
+
+Do not persist the operating system in this file. Detect it live, every time
+it matters, with a one-line check (`process.platform` in Node, `uname -s`
+otherwise) — it is cheap to check and would go stale if persisted.
+
+Any skill that generates a project-facing URL (`docker-compose-generator`,
+`delivery-package-preparation`, or anything that writes `preview.url`) should
+read `topology` before deciding how to expose a running project, instead of
+assuming `localhost` is always reachable by whoever is looking. Wiring those
+skills to actually branch on this is follow-up work, not done yet — this
+section only defines the signal and where it comes from.
+
 ## Package Manager Commands
 
 Use plain `npm` and `npx` resolved from PATH.

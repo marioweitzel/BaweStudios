@@ -29,10 +29,12 @@ import {
   INTERVIEW_COMPLETE_NOTICE,
   env
 } from './config/env';
+import { writeRuntimeContext } from './config/runtimeContext';
 import type {
   StoredProject,
 } from './types/domain';
 
+writeRuntimeContext();
 
 const app = express();
 app.disable('x-powered-by');
