@@ -1,8 +1,24 @@
+import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 
 // Cargar .env desde la raiz del proyecto.
 dotenv.config({ path: path.join(__dirname, '..', '..', '..', '.env') });
+
+// Docker/Swarm secrets se montan como archivo (ej. /run/secrets/db_password),
+// no como variable de entorno directa -- por convencion, <VAR>_FILE apunta al
+// archivo. Si esta seteada, gana sobre <VAR> (que puede no existir en ese caso).
+function readSecretOrEnv(varName: string, fallback = ''): string {
+  const filePath = process.env[`${varName}_FILE`];
+  if (filePath) {
+    try {
+      return fs.readFileSync(filePath, 'utf-8').trim();
+    } catch (err) {
+      throw new Error(`[ENV] no se pudo leer el secret de ${varName} en ${filePath}: ${(err as Error).message}`);
+    }
+  }
+  return process.env[varName] || fallback;
+}
 
 const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret) {
@@ -19,7 +35,7 @@ export const env = {
     port: Number(process.env.DB_PORT || 3306),
     name: process.env.DB_NAME || 'bawestudio',
     user: process.env.DB_USER || 'bawestudio',
-    pass: process.env.DB_PASS || ''
+    pass: readSecretOrEnv('DB_PASS')
   },
   hostBackgroundMaxAttempts: Number(process.env.HOST_BACKGROUND_MAX_ATTEMPTS || process.env.CODEX_BACKGROUND_MAX_ATTEMPTS || 80)
 };
