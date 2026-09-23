@@ -56,6 +56,8 @@ services:
       REDIS_HOST: redis
       HOST_ADAPTER: ${HOST_ADAPTER:-codex}
       BAWE_PROJECTS_ROOT: /workspace/bawestudios
+      BAWE_TOPOLOGY: ${BAWE_TOPOLOGY:-local}
+      BAWE_PUBLIC_BASE_URL: ${BAWE_PUBLIC_BASE_URL:-}
     secrets:
       - source: db_password_bs
         target: db_password
