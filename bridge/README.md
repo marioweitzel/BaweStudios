@@ -99,10 +99,13 @@ Ninguno depende de que los otros estén arriba.
 ## Como servicio systemd (recomendado en un servidor)
 
 Unidades ya escritas en `bridge/systemd/` (una por bridge + host-detect).
-Asumen el repo clonado en `/root/BaweStudiosLinux` — si termina en otra
-ruta, hay que editar el `WorkingDirectory`/`ExecStart` de cada `.service`
-antes de instalarlo (queda pendiente automatizar esto en un instalador real,
-ver `docs/instalador-vm-diseno-linux.md`).
+Corren como `User=ubuntu`, **no root** — Claude Code se niega a correr con
+`--dangerously-skip-permissions` si el proceso es root/sudo (confirmado en
+vivo, ver `docs/instalador-vm-diseno-linux.md`). Por eso también asumen el
+repo clonado en `/home/ubuntu/BaweStudiosLinux` (no `/root/...` — ese
+directorio es `700`, `ubuntu` ni puede entrar). Si termina en otra ruta, hay
+que editar `User`/`WorkingDirectory`/`ExecStart` de cada `.service` antes de
+instalarlo (queda pendiente automatizar esto en un instalador real).
 
 ```bash
 cp bridge/systemd/*.service /etc/systemd/system/

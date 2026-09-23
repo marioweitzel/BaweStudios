@@ -4,9 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/root/BaweStudiosLinux
+User=ubuntu
+WorkingDirectory=/home/ubuntu/BaweStudiosLinux
 Environment=HOST_DETECT_PORT=5010
-ExecStart=/usr/bin/node /root/BaweStudiosLinux/bridge/src/host-detect.js
+ExecStart=/usr/bin/node /home/ubuntu/BaweStudiosLinux/bridge/src/host-detect.js
 Restart=on-failure
 RestartSec=3
 

@@ -4,9 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/root/BaweStudiosLinux
+User=ubuntu
+WorkingDirectory=/home/ubuntu/BaweStudiosLinux
 Environment=OPENCODE_BRIDGE_PORT=5002
-ExecStart=/usr/bin/node /root/BaweStudiosLinux/bridge/src/opencode-bridge.js
+ExecStart=/usr/bin/node /home/ubuntu/BaweStudiosLinux/bridge/src/opencode-bridge.js
 Restart=on-failure
 RestartSec=3
 
