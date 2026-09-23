@@ -30,9 +30,12 @@ artifacts.
 
 - Generate both compose files together. Do not generate a generic
   `docker-compose.yml` as the primary runtime file.
-- `docker-compose-local.yml` is for Windows Docker Desktop and local developer
-  validation. It may use `build`, named volumes, published localhost ports and
-  `.env.example` values.
+- `docker-compose-local.yml` is for local developer validation. It may use
+  `build`, named volumes, published ports and `.env.example` values. Publish
+  ports as `"${PORT_VAR}:CONTAINER_PORT"` — do not prefix with `127.0.0.1:`.
+  BaweStudio may be running on a remote host with a `remote-hosted` topology
+  (see `.agents/contracts/runtime-environment-contract.md`); a loopback-only
+  bind makes the preview unreachable for anyone not on that host.
 - `docker-compose-vps.yml` is for Ubuntu VPS Docker Swarm with Traefik. It must
   be suitable for `docker stack deploy`, use Swarm-compatible `deploy` labels,
   use the declared Traefik external network, and avoid localhost-only bindings.

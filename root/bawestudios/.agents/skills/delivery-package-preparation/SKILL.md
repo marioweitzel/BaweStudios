@@ -222,6 +222,31 @@ After creating the zip, verify:
 - the zip can be listed or tested with the generated password when the chosen
   tool supports validation.
 
+## Preview URL
+
+Determine the preview host from
+`[WORKSPACE_ROOT]/.bawe-runtime/runtime-context.json`, per
+`.agents/contracts/runtime-environment-contract.md`:
+
+- If the file is absent, or `topology` is `"local"`: the preview host is
+  `localhost`.
+- If `topology` is `"remote-hosted"`: the preview host is `public_base_url`
+  from that file. Do not fall back to `localhost` in this case — a
+  `remote-hosted` preview pointing at `localhost` is broken for anyone who is
+  not on the machine running BaweStudio.
+
+Take the frontend port from `task-log.md` (or from the project's generated
+`docker-compose-local.yml` when `task-log.md` does not record it) — the same
+port a human would open to see the running product.
+
+Build `preview.url` as `<host>:<port>` (for example `http://localhost:5173`
+or `http://164.68.109.5:5173`), unless `public_base_url` already contains an
+explicit port, in which case use `public_base_url` as-is without appending
+another one.
+
+Set `preview.type` to the `topology` value actually used (`"local"` or
+`"remote-hosted"`) — do not hardcode `"local"` regardless of topology.
+
 ## Delivery Pointer
 
 Write:
