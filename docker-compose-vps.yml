@@ -1,9 +1,9 @@
 version: "3.8"
 
 secrets:
-  db_password:
+  db_password_bs:
     external: true
-  db_root_password:
+  db_root_password_bs:
     external: true
 
 services:
@@ -15,8 +15,10 @@ services:
       MYSQL_PASSWORD_FILE: /run/secrets/db_password
       MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
     secrets:
-      - db_password
-      - db_root_password
+      - source: db_password_bs
+        target: db_password
+      - source: db_root_password_bs
+        target: db_root_password
     ports:
       - "${DB_PORT}:3306"
     volumes:
@@ -55,7 +57,8 @@ services:
       HOST_ADAPTER: ${HOST_ADAPTER:-codex}
       BAWE_PROJECTS_ROOT: /workspace/bawestudios
     secrets:
-      - db_password
+      - source: db_password_bs
+        target: db_password
     volumes:
       - ./root/bawestudios:/workspace/bawestudios
       - ./logs:/logs
