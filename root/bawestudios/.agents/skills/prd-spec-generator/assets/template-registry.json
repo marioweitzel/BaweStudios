@@ -1,0 +1,192 @@
+{
+  "registry_name": "bawe-prd-template-registry",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "Registro canónico para normalizar project_type y seleccionar exactamente una plantilla de dominio.",
+  "default_type": "generic",
+  "default_template": "project-types/generic/prd-template.md",
+  "selection_policy": {
+    "templates_per_generation": 1,
+    "source_field": "project-context.md::project.type",
+    "specialized_template_preferred_over_generic": true,
+    "declared_type_is_signal_not_absolute_truth": true,
+    "fallback_on_missing_type": "generic",
+    "fallback_on_unknown_alias": "generic",
+    "fallback_on_ambiguous_type": "generic",
+    "mixed_project_rule": "Seleccionar el tipo que represente el valor central y el flujo principal. Las funciones secundarias no cambian la plantilla principal.",
+    "contradiction_rule": "Si project_type contradice purpose, primary_actions o must_have_features, registrar la contradicción y normalizar por el núcleo funcional solo cuando la evidencia sea suficiente; de lo contrario usar generic."
+  },
+  "normalization": {
+    "trim_whitespace": true,
+    "lowercase": true,
+    "unicode_normalization": "NFKC",
+    "replace_separators_with_space": [
+      "_",
+      "-"
+    ],
+    "collapse_internal_whitespace": true,
+    "match_mode": "exact_alias_after_normalization",
+    "do_not_use_substring_guessing": true
+  },
+  "types": {
+    "saas": {
+      "template": "project-types/saas/prd-template.md",
+      "aliases": [
+        "saas",
+        "dashboard",
+        "panel operativo",
+        "sistema de gestion",
+        "sistema de gestión",
+        "plataforma de operaciones",
+        "herramienta interna",
+        "software de administracion",
+        "software de administración",
+        "portal de trabajo",
+        "aplicacion de gestion",
+        "aplicación de gestión",
+        "web app",
+        "webapp"
+      ],
+      "core_test": "El valor central ocurre dentro de una herramienta de uso recurrente con datos, operaciones o procesos persistentes."
+    },
+    "ecommerce": {
+      "template": "project-types/ecommerce/prd-template.md",
+      "aliases": [
+        "ecommerce",
+        "e commerce",
+        "comercio electronico",
+        "comercio electrónico",
+        "tienda online",
+        "tienda virtual",
+        "venta online",
+        "shop",
+        "store",
+        "online store"
+      ],
+      "core_test": "El valor central es seleccionar y completar una transacción comercial."
+    },
+    "landing": {
+      "template": "project-types/landing/prd-template.md",
+      "aliases": [
+        "landing",
+        "landing page",
+        "marketing",
+        "marketing site",
+        "pagina de campaña",
+        "página de campaña",
+        "pagina de captacion",
+        "página de captación",
+        "pagina de lanzamiento",
+        "página de lanzamiento",
+        "prelaunch",
+        "waitlist",
+        "micrositio de campaña"
+      ],
+      "core_test": "El valor central es comunicar una propuesta y conducir a una acción principal."
+    },
+    "corporate": {
+      "template": "project-types/corporate/prd-template.md",
+      "aliases": [
+        "corporate",
+        "institutional",
+        "institucional",
+        "sitio corporativo",
+        "sitio empresarial",
+        "sitio de empresa",
+        "sitio de organizacion",
+        "sitio de organización",
+        "company website",
+        "ong",
+        "fundacion",
+        "fundación",
+        "institucion",
+        "institución"
+      ],
+      "core_test": "El valor central es representar una organización ante una o varias audiencias.",
+      "notes": [
+        "startup no es alias automático; debe resolverse entre corporate, landing o saas"
+      ]
+    },
+    "blog": {
+      "template": "project-types/blog/prd-template.md",
+      "aliases": [
+        "blog",
+        "cms",
+        "sitio editorial",
+        "medio digital",
+        "revista online",
+        "portal de noticias",
+        "base de conocimiento",
+        "documentacion",
+        "documentación",
+        "tutoriales",
+        "publicacion de contenido",
+        "publicación de contenido",
+        "newsletter"
+      ],
+      "core_test": "El valor central es crear, publicar, organizar, consultar o distribuir contenido recurrente."
+    },
+    "portfolio": {
+      "template": "project-types/portfolio/prd-template.md",
+      "aliases": [
+        "portfolio",
+        "portafolio",
+        "book profesional",
+        "muestra de trabajos",
+        "sitio personal profesional",
+        "portfolio creativo",
+        "portfolio de estudio",
+        "showcase",
+        "case study site"
+      ],
+      "core_test": "El valor central es demostrar trabajos, obra, experiencia o capacidad."
+    },
+    "generic": {
+      "template": "project-types/generic/prd-template.md",
+      "aliases": [
+        "generic",
+        "general",
+        "other",
+        "otro",
+        "otros",
+        "custom",
+        "personalizado",
+        "unknown",
+        "desconocido",
+        "hybrid",
+        "hibrido",
+        "híbrido"
+      ],
+      "core_test": "Ningún dominio especializado representa el núcleo con suficiente confianza."
+    }
+  },
+  "resolution_order": [
+    "normalize_declared_value",
+    "match_exact_alias",
+    "validate_match_against_product_core",
+    "resolve_dominant_type",
+    "fallback_to_generic"
+  ],
+  "runtime_evidence": {
+    "record_in_prd_input": [
+      "original_project_type",
+      "normalized_project_type",
+      "selected_template",
+      "normalization_method",
+      "normalization_reason",
+      "dominant_type_signals",
+      "rejected_type_candidates",
+      "fallback_reason"
+    ],
+    "selected_template_count_must_equal": 1
+  },
+  "validation": {
+    "all_template_paths_must_exist": true,
+    "all_aliases_must_resolve_to_one_type": true,
+    "duplicate_aliases_are_invalid": true,
+    "default_type_must_exist": true,
+    "default_template_must_match_default_type": true,
+    "unknown_alias_must_not_hard_fail": true,
+    "unknown_alias_result": "generic"
+  }
+}

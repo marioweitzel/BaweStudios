@@ -1,0 +1,14 @@
+[Unit]
+Description=BaweStudio - Claude bridge (puerto 5001)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/BaweStudiosLinux
+Environment=CLAUDE_BRIDGE_PORT=5001
+ExecStart=/usr/bin/node /root/BaweStudiosLinux/bridge/src/claude-bridge.js
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

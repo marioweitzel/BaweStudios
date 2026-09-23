@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bawe.local/schemas/delivery-package.schema.json",
+  "title": "BaWe Delivery Package Pointer",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "status",
+    "project_id",
+    "package_dir",
+    "zip_path",
+    "zip_encrypted",
+    "password_file",
+    "encryption",
+    "preview",
+    "included",
+    "excluded_internal",
+    "docs",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["READY", "BLOCKED"]
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "package_dir": {
+      "type": "string"
+    },
+    "zip_path": {
+      "type": "string"
+    },
+    "zip_encrypted": {
+      "type": "boolean"
+    },
+    "password_file": {
+      "type": "string"
+    },
+    "encryption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "method", "password_delivery"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "method": {
+          "type": "string"
+        },
+        "password_delivery": {
+          "type": "string"
+        }
+      }
+    },
+    "preview": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "url"],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "included": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "excluded_internal": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "docs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "blocking_reason": {
+      "type": "string"
+    }
+  }
+}

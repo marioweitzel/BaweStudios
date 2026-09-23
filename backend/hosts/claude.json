@@ -1,0 +1,11 @@
+{
+  "name": "claude",
+  "type": "http-bridge",
+  "bridgeUrl": "http://host.docker.internal:5001/claude",
+  "command": "claude",
+  "mode": "session-resume",
+  "input": "argv",
+  "output": "stdout",
+  "stderr": "capture",
+  "timeoutMs": 600000
+}

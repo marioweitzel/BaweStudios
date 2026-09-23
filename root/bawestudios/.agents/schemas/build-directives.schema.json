@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bawe.local/schemas/pre-queue/build-directives.schema.json",
+  "title": "BaWe PRE_QUEUE Build Directives",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "project_id",
+    "product_authority",
+    "scope",
+    "stack",
+    "routing",
+    "validation_policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "product_authority": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "visual_product_standard": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "stack": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "routing": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "validation_policy": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

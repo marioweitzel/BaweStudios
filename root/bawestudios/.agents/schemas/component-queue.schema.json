@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bawe.local/schemas/pre-queue/component-queue.schema.json",
+  "title": "BaWe PRE_QUEUE Reduced Component Queue",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "objectives",
+    "active_objective_id",
+    "dependencies",
+    "status",
+    "project_status",
+    "blockers",
+    "next_action"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "objectives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/$defs/status"
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acceptance_reference": {
+            "type": "string"
+          },
+          "surface_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "module_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "data_flow_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "visual_contract_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "visual_enrichment_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "design_system_ref": {
+            "type": "string"
+          },
+          "blockers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "next_action": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "active_objective_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "$ref": "#/$defs/status"
+    },
+    "project_status": {
+      "$ref": "#/$defs/project_status"
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "next_node": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "next_skill": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "next_action": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "status": {
+      "enum": [
+        "PENDING",
+        "ACTIVE",
+        "NEEDS_VALIDATION",
+        "NEEDS_CORRECTION",
+        "BLOCKED",
+        "READY_FOR_CLIENT_REVIEW",
+        "SKIPPED"
+      ]
+    },
+    "project_status": {
+      "enum": [
+        "IN_PROGRESS",
+        "AWAITING_CLIENT_FACING_REVIEW",
+        "BLOCKED",
+        "NEEDS_CORRECTION",
+        "AWAITING_DELIVERY_PREPARATION",
+        "READY_FOR_CLIENT_REVIEW"
+      ]
+    }
+  }
+}

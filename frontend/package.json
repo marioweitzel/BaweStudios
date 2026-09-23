@@ -1,0 +1,12 @@
+﻿{
+  "name": "bawestudio-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node -e \"const fs=require('fs'); const files=['index.html','src/bootstrap.js','src/state/appState.js','src/api/client.js','src/socket/socketClient.js','src/socket/socketEvents.js','src/views/auth/AuthShell.html','src/views/dashboard/DashboardShell.html','src/views/dashboard/HomeView.html','src/views/projects/ProjectsView.html','src/views/chat/ProjectChatView.html','src/components/DeleteProjectModal.html','src/components/DeleteProjectModal.js','src/components/ProjectCard.js','src/components/ChatMessage.js','src/components/ProjectHistory.js','src/components/ProjectChatPanel.js','src/services/appShell.js','src/services/chatRuntime.js','src/services/stopFlow.js','src/services/sendMessageFlow.js','src/services/deleteProjectFlow.js','src/styles/base.css','src/styles/layout.css','src/styles/app.css']; for (const p of files) { if (!fs.existsSync(p)) { console.error('missing '+p); process.exit(1); } } console.log('frontend source validated');\"",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6"
+  }
+}

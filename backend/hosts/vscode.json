@@ -1,0 +1,12 @@
+{
+  "name": "vscode",
+  "type": "cli-process",
+  "command": "code",
+  "args": [],
+  "cwd": "D:\\Bawe\\Proyecto Mario\\root\\BaweStudio\\root\\bawestudios",
+  "mode": "spawn-per-message",
+  "input": "argv",
+  "output": "stdout",
+  "stderr": "capture",
+  "timeoutMs": 600000
+}

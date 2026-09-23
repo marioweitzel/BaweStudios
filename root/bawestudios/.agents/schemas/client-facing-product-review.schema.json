@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bawe.local/schemas/client-facing-product-review.schema.json",
+  "title": "BaWe Client-Facing Product Review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "gate_id",
+    "status",
+    "project_id",
+    "reviewed_at",
+    "surface_inventory_complete",
+    "reviewed_as_paid_product",
+    "inventory_sources",
+    "reviewed_roles",
+    "reviewed_routes",
+    "reviewed_states",
+    "reviewed_viewports",
+    "evidence",
+    "internal_build_language_found",
+    "demo_artifacts_visible",
+    "unfinished_surface_found",
+    "client_ready_verdict",
+    "findings",
+    "correction_objectives",
+    "next_node"
+  ],
+  "properties": {
+    "gate_id": {
+      "const": "client-facing-product-review"
+    },
+    "status": {
+      "enum": ["PASS", "NEEDS_CORRECTION", "BLOCKED"]
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "reviewed_at": {
+      "type": "string"
+    },
+    "surface_inventory_complete": {
+      "type": "boolean"
+    },
+    "reviewed_as_paid_product": {
+      "type": "boolean"
+    },
+    "inventory_sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reviewed_roles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reviewed_routes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reviewed_states": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reviewed_viewports": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "internal_build_language_found": {
+      "type": "boolean"
+    },
+    "demo_artifacts_visible": {
+      "type": "boolean"
+    },
+    "unfinished_surface_found": {
+      "type": "boolean"
+    },
+    "client_ready_verdict": {
+      "type": "boolean"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "correction_objectives": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/correction_objective"
+      }
+    },
+    "next_node": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "severity",
+        "surface",
+        "role",
+        "viewport",
+        "issue",
+        "evidence",
+        "mapped_objective_id",
+        "recommended_correction"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "severity": {
+          "enum": ["BLOCKING", "HIGH", "MEDIUM"]
+        },
+        "surface": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "viewport": {
+          "type": "string"
+        },
+        "issue": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "string"
+        },
+        "mapped_objective_id": {
+          "type": "string"
+        },
+        "recommended_correction": {
+          "type": "string"
+        }
+      }
+    },
+    "correction_objective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "summary", "finding_ids", "target_surfaces"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "target_surfaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

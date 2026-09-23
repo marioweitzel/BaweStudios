@@ -1,0 +1,14 @@
+[Unit]
+Description=BaweStudio - OpenCode bridge (puerto 5002)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/BaweStudiosLinux
+Environment=OPENCODE_BRIDGE_PORT=5002
+ExecStart=/usr/bin/node /root/BaweStudiosLinux/bridge/src/opencode-bridge.js
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

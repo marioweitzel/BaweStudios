@@ -1,0 +1,190 @@
+[
+  {
+    "id": "api-contract-testing",
+    "path": ".agents/skills/api-contract-testing/SKILL.md",
+    "purpose": "Validate API implementation against api-schema.json.",
+    "applicability": "WHEN_APPLICABLE",
+    "required_for_closure": true,
+    "inputs": [
+      "active_objective",
+      "build-directives",
+      "api-schema.json",
+      "implementation files"
+    ],
+    "outputs": [
+      "summary",
+      "failures",
+      "optional artifact path"
+    ],
+    "status": "INSTALLED"
+  },
+  {
+    "id": "testing-gate",
+    "path": ".agents/skills/testing-gate/SKILL.md",
+    "purpose": "Run or inspect applicable automated tests and build checks.",
+    "applicability": "PRE_CLOSE",
+    "required_for_closure": true,
+    "inputs": [
+      "active_objective",
+      "changed files",
+      "package manifests",
+      "test configuration"
+    ],
+    "outputs": [
+      "commands",
+      "pass/fail summary",
+      "failures"
+    ],
+    "status": "INSTALLED"
+  },
+  {
+    "id": "workflow-testing",
+    "path": ".agents/skills/workflow-testing/SKILL.md",
+    "purpose": "Validate multi-step product journeys.",
+    "applicability": "WHEN_APPLICABLE",
+    "required_for_closure": true,
+    "inputs": [
+      "prd acceptance criteria",
+      "project-context.md",
+      "build-directives",
+      "runtime or test harness"
+    ],
+    "outputs": [
+      "journey",
+      "result",
+      "failures"
+    ],
+    "status": "INSTALLED"
+  },
+  {
+    "id": "ui-screenshot-capture",
+    "path": ".agents/skills/ui-screenshot-capture/SKILL.md",
+    "purpose": "Capture real UI states and console summary.",
+    "applicability": "WHEN_APPLICABLE",
+    "required_for_closure": true,
+    "inputs": [
+      "runtime_url",
+      "expected_routes",
+      "expected_states",
+      "active_objective"
+    ],
+    "outputs": [
+      "screenshot paths",
+      "console summary"
+    ],
+    "status": "INSTALLED"
+  },
+  {
+    "id": "visual-quality-gate",
+    "path": ".agents/skills/visual-quality-gate/SKILL.md",
+    "purpose": "Assess professional visual quality for UI surfaces.",
+    "applicability": "PRE_CLOSE",
+    "required_for_closure": true,
+    "inputs": [
+      "screenshot paths",
+      "prd.md",
+      "project-context.md",
+      "build-directives",
+      "optional approved visual references"
+    ],
+    "outputs": [
+      "findings",
+      "blockers",
+      "references used"
+    ],
+    "status": "INSTALLED",
+    "catalog_status": "INSTALLED_PATTERN_REFERENCES"
+  },
+  {
+    "id": "a11y-validation-gate",
+    "path": ".agents/skills/a11y-validation-gate/SKILL.md",
+    "purpose": "Validate accessibility blockers for UI surfaces.",
+    "applicability": "WHEN_APPLICABLE",
+    "required_for_closure": true,
+    "inputs": [
+      "ui code",
+      "runtime_url",
+      "screenshots",
+      "active_objective"
+    ],
+    "outputs": [
+      "findings",
+      "blockers"
+    ],
+    "status": "INSTALLED"
+  },
+  {
+    "id": "observability-gate",
+    "path": ".agents/skills/observability-gate/SKILL.md",
+    "purpose": "Check health, logging and operational visibility when product risk requires it.",
+    "applicability": "WHEN_APPLICABLE",
+    "required_for_closure": false,
+    "inputs": [
+      "active_objective",
+      "build-directives",
+      "backend files",
+      "integration files",
+      "runtime logs when available"
+    ],
+    "outputs": [
+      "health/logging findings"
+    ],
+    "status": "INSTALLED"
+  },
+  {
+    "id": "post-deploy-qa",
+    "path": ".agents/skills/post-deploy-qa/SKILL.md",
+    "purpose": "Actively verify a running app against product expectations.",
+    "applicability": "PRE_CLOSE",
+    "required_for_closure": true,
+    "inputs": [
+      "runtime_url",
+      "prd.md",
+      "project-context.md",
+      "build-directives",
+      "expected routes and flows"
+    ],
+    "outputs": [
+      "routes checked",
+      "flows checked",
+      "console/runtime findings"
+    ],
+    "status": "INSTALLED"
+  },
+  {
+    "id": "security-baseline-gate",
+    "path": ".agents/skills/security-baseline-gate/SKILL.md",
+    "purpose": "Validate baseline security hygiene for auth, credentials and write-capable backend endpoints.",
+    "applicability": "WHEN_APPLICABLE",
+    "required_for_closure": true,
+    "inputs": [
+      "active_objective",
+      "backend route/controller/middleware files",
+      "auth/session/token handling code",
+      "role-matrix.json when present",
+      "build-directives"
+    ],
+    "outputs": [
+      "findings",
+      "blockers"
+    ],
+    "status": "INSTALLED"
+  },
+  {
+    "id": "docker-validation-gate",
+    "path": ".agents/skills/docker-validation-gate/SKILL.md",
+    "purpose": "Validate Docker and Compose configuration when containerized runtime applies.",
+    "applicability": "WHEN_APPLICABLE",
+    "required_for_closure": false,
+    "inputs": [
+      "docker-compose files",
+      "Dockerfiles",
+      ".env.example",
+      "build-directives"
+    ],
+    "outputs": [
+      "compose/config/runtime summary"
+    ],
+    "status": "INSTALLED"
+  }
+]

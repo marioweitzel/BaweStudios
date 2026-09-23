@@ -1,0 +1,12 @@
+{
+  "name": "codex",
+  "type": "http-bridge",
+  "bridgeUrl": "http://host.docker.internal:5000/codex",
+  "command": "codex",
+  "args": ["exec", "--json", "--skip-git-repo-check"],
+  "mode": "session-resume",
+  "input": "argv",
+  "output": "stdout",
+  "stderr": "capture",
+  "timeoutMs": 600000
+}

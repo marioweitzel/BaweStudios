@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bawe.local/schemas/pre-queue/nexo-output.schema.json",
+  "title": "BaWe PRE_QUEUE NEXO Output",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "project_id",
+    "product_authority",
+    "scope",
+    "stack",
+    "routing",
+    "validation_policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "product_authority": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "prd": {
+          "type": "string"
+        },
+        "project_context": {
+          "type": "string"
+        },
+        "clarifications": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "stack": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "routing": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "selected_route": {
+          "enum": [
+            "app-web",
+            "software-product",
+            "blocked"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "validation_policy": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,0 +1,14 @@
+[Unit]
+Description=BaweStudio - Codex bridge (puerto 5000)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/BaweStudiosLinux
+Environment=CODEX_BRIDGE_PORT=5000
+ExecStart=/usr/bin/node /root/BaweStudiosLinux/bridge/src/codex-bridge.js
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

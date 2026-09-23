@@ -1,0 +1,11 @@
+{
+  "name": "opencode",
+  "type": "http-bridge",
+  "bridgeUrl": "http://host.docker.internal:5002/opencode",
+  "command": "opencode",
+  "mode": "session-resume",
+  "input": "argv",
+  "output": "stdout",
+  "stderr": "capture",
+  "timeoutMs": 600000
+}

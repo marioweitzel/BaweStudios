@@ -1,0 +1,280 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bawe.local/schemas/pre-queue/app-structure.schema.json",
+  "title": "BaWe PRE_QUEUE App Structure",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "project_id",
+    "route",
+    "surfaces",
+    "data_entities",
+    "api_surfaces",
+    "visual_architecture"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "route": {
+      "type": "string"
+    },
+    "surfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "data_entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "api_surfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "application_strategy": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "source_structure": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "module_boundaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "route_map": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "surface_contracts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "data_flow_contracts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "runtime_state": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "route_behavior": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "api_contract_plan": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "state_management_plan": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "design_system": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "responsive_contract": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "implementation_constraints": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "professional_self_check": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "traceability": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "visual_reference_selection": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "catalog": {
+          "type": "string"
+        },
+        "selected_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "selection_reason": {
+          "type": "string"
+        },
+        "rejected_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "do_not_transfer": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "visual_architecture": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "overall_direction",
+        "product_visual_standard",
+        "source_basis",
+        "surface_contracts",
+        "visual_enrichment_opportunities"
+      ],
+      "properties": {
+        "overall_direction": {
+          "type": "string"
+        },
+        "product_visual_standard": {
+          "type": "string"
+        },
+        "source_basis": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "surface_contracts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "surface_id",
+              "visual_intent",
+              "perceived_quality_bar",
+              "layout_anatomy",
+              "state_feedback",
+              "responsive_expectations"
+            ],
+            "properties": {
+              "surface_id": {
+                "type": "string"
+              },
+              "visual_intent": {
+                "type": "string"
+              },
+              "perceived_quality_bar": {
+                "type": "string"
+              },
+              "layout_anatomy": {
+                "type": "string"
+              },
+              "state_feedback": {
+                "type": "string"
+              },
+              "responsive_expectations": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "visual_enrichment_opportunities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "surface_id",
+              "recommended",
+              "asset_strategy",
+              "intended_value",
+              "source_basis",
+              "constraints"
+            ],
+            "properties": {
+              "surface_id": {
+                "type": "string"
+              },
+              "recommended": {
+                "type": "boolean"
+              },
+              "asset_strategy": {
+                "enum": [
+                  "provided_asset",
+                  "generated_image",
+                  "licensed_reference_image",
+                  "icon_system",
+                  "pattern",
+                  "microinteraction",
+                  "none"
+                ]
+              },
+              "intended_value": {
+                "type": "string"
+              },
+              "source_basis": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "constraints": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "avoid": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "implementation_note": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

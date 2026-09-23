@@ -1,0 +1,246 @@
+{
+  "version": "1.1.9",
+  "motor": "Motor Final",
+  "status": "AUTONOMOUS_DEVELOPMENT_INSTALLED",
+  "description": "Motor Final manifest with direct PRE_QUEUE architecture-to-queue flow, Docker-first runtime validation, product-level visual standard, shared design system tokens, signature visual element, restraint rules, surface-level visual contracts, perceived UI quality closure, single-LLM autonomous development, and applicability-based validation tools installed.",
+  "authority": {
+    "dispatcher": ".agents/skill-dispatcher.md",
+    "tool_registry": ".agents/tool-registry.json",
+    "tool_registry_runtime_required": false,
+    "contracts": {
+      "professional_development": ".agents/contracts/professional-development-contract.md",
+      "self_validation": ".agents/contracts/self-validation-contract.md",
+      "professional_closure": ".agents/contracts/professional-closure-contract.md",
+      "continuity": ".agents/contracts/continuity-contract.md",
+      "project_lifecycle": ".agents/contracts/project-lifecycle-contract.md",
+      "delivery_documentation": ".agents/contracts/delivery-documentation-contract.md",
+      "runtime_environment": ".agents/contracts/runtime-environment-contract.md"
+    },
+    "schemas": {
+      "build_directives": ".agents/schemas/build-directives.schema.json",
+      "app_structure": ".agents/schemas/app-structure.schema.json",
+      "role_matrix": ".agents/schemas/role-matrix.schema.json",
+      "component_queue": ".agents/schemas/component-queue.schema.json",
+      "delivery_package": ".agents/schemas/delivery-package.schema.json"
+    },
+    "skills": {
+      "autonomous_development": ".agents/skills/autonomous-product-development/SKILL.md",
+      "delivery_package_preparation": ".agents/skills/delivery-package-preparation/SKILL.md"
+    }
+  },
+  "product_authority_order": [
+    "prd.md",
+    "project-context.md",
+    "log-preguntas.md",
+    "explicit user clarifications"
+  ],
+  "operational_authority_order": [
+    ".bawe/build-directives.json",
+    ".bawe/component-queue.json",
+    ".bawe/app-structure.json when applicable",
+    ".bawe/role-matrix.json when applicable",
+    ".bawe/delivery-package.json when delivery package is ready",
+    "api-schema.json when applicable",
+    "docker-compose-local.yml for executable runtime",
+    "docker-compose-vps.yml for VPS delivery"
+  ],
+  "phases": [
+    {
+      "id": "PRE_QUEUE",
+      "status": "INSTALLED",
+      "install_status": "INSTALLED",
+      "executable_when_requested_by_runtime": true,
+      "order": [
+        {
+          "step": "context",
+          "skills": [
+            "project-context-detector",
+            "bawe-initialization-logic",
+            "project-context-generator"
+          ]
+        },
+        {
+          "step": "PRD",
+          "skills": [
+            "prd-spec-generator"
+          ]
+        },
+        {
+          "step": "PRD validation",
+          "skills": [
+            "prd-validation-gate"
+          ]
+        },
+        {
+          "step": "NEXO",
+          "skills": [
+            "adn-translator"
+          ]
+        },
+        {
+          "step": "architecture",
+          "skills": [
+            "architecture",
+            "software-product-architect"
+          ]
+        },
+        {
+          "step": "reduced queue",
+          "skills": [
+            "component-queue-generator"
+          ]
+        }
+      ],
+      "exit_condition": "Reduced .bawe/component-queue.json exists or a blocker is recorded in task-log.md.",
+      "stop_after": "component-queue-generator"
+    },
+    {
+      "id": "AUTONOMOUS_DEVELOPMENT",
+      "status": "INSTALLED",
+      "install_status": "INSTALLED",
+      "executable_when_requested_by_runtime": true,
+      "model": "single_llm_vertical_development",
+      "skill": ".agents/skills/autonomous-product-development/SKILL.md",
+      "contract": ".agents/contracts/professional-development-contract.md",
+      "entry_condition": "active objective exists in the reduced component queue",
+      "cycle": [
+        "UNDERSTAND",
+        "INSPECT",
+        "PLAN LOCALLY",
+        "IMPLEMENT",
+        "REVIEW CODE STRUCTURE",
+        "RUN THE APP OR RELEVANT CHECKS",
+        "NAVIGATE THE REAL FLOW WHEN UI EXISTS",
+        "CORRECT",
+        "REVALIDATE",
+        "PROFESSIONAL SELF CHECK",
+        "REQUEST PROFESSIONAL CLOSURE",
+        "UPDATE CONTINUITY"
+      ],
+      "exit_condition": "objective reaches READY_FOR_CLIENT_REVIEW, BLOCKED or SKIPPED in task-log.md",
+      "queue_advancement": ".agents/contracts/project-lifecycle-contract.md"
+    },
+    {
+      "id": "SELF_VALIDATION",
+      "status": "INSTALLED_TOOL_DRIVEN",
+      "install_status": "INSTALLED_TOOL_DRIVEN",
+      "executable_when_runtime_allows_validation": true,
+      "contract": ".agents/contracts/self-validation-contract.md",
+      "tool_registry": ".agents/tool-registry.json",
+      "tool_registry_runtime_required": false,
+      "selection_rule": "Select checks by changed surface, product risk and closure needs. Do not read every tool by default."
+    },
+    {
+      "id": "PROFESSIONAL_CLOSURE",
+      "status": "INSTALLED_CONTRACT_DRIVEN",
+      "install_status": "INSTALLED_CONTRACT_DRIVEN",
+      "executable_when_runtime_allows_validation": true,
+      "contract": ".agents/contracts/professional-closure-contract.md",
+      "entry_condition": "Applicable self-validation results have been inspected and blockers corrected or recorded."
+    },
+    {
+      "id": "CONTINUITY_UPDATE",
+      "status": "INSTALLED_CONTRACT_DRIVEN",
+      "install_status": "INSTALLED_CONTRACT_DRIVEN",
+      "contract": ".agents/contracts/continuity-contract.md",
+      "primary_source": "task-log.md",
+      "project_lifecycle_contract": ".agents/contracts/project-lifecycle-contract.md"
+    },
+    {
+      "id": "PROJECT_LIFECYCLE",
+      "status": "INSTALLED_CONTRACT_DRIVEN",
+      "install_status": "INSTALLED_CONTRACT_DRIVEN",
+      "contract": ".agents/contracts/project-lifecycle-contract.md",
+      "runtime_artifacts": [
+        ".bawe/build-directives.json",
+        ".bawe/app-structure.json",
+        ".bawe/role-matrix.json",
+        ".bawe/component-queue.json",
+        ".bawe/client-facing-product-review.json",
+        ".bawe/delivery-package.json",
+        "api-schema.json when applicable",
+        "docker-compose-local.yml when executable",
+        "docker-compose-vps.yml when executable",
+        ".env.example when executable"
+      ],
+      "project_status_values": [
+        "IN_PROGRESS",
+        "BLOCKED",
+        "NEEDS_CORRECTION",
+        "AWAITING_CLIENT_FACING_REVIEW",
+        "AWAITING_DELIVERY_PREPARATION",
+        "READY_FOR_CLIENT_REVIEW"
+      ],
+      "queue_advancement": "After objective READY_FOR_CLIENT_REVIEW, select the next dependency-satisfied PENDING objective as ACTIVE or set active_objective_id to null and evaluate project closure."
+    }
+  ],
+  "installed_tools": {
+    "status": "INSTALLED",
+    "registry": ".agents/tool-registry.json",
+    "runtime_required": false,
+    "selection_rule": "Checks are selected by applicability, not as a universal chain.",
+    "ids": [
+      "api-contract-testing",
+      "testing-gate",
+      "workflow-testing",
+      "ui-screenshot-capture",
+      "visual-quality-gate",
+      "a11y-validation-gate",
+      "observability-gate",
+      "post-deploy-qa",
+      "docker-validation-gate",
+      "security-baseline-gate"
+    ]
+  },
+  "runtime_helpers": {
+    "docker_runtime": {
+      "runtime_required": "required_for_executable_products",
+      "selection_rule": "Generate and maintain Dockerfiles, docker-compose-local.yml, docker-compose-vps.yml, .env.example and .dockerignore before runtime validation or delivery. They are runtime artifacts, not PRE_QUEUE planning documents.",
+      "local_runtime": "Windows Docker Desktop uses docker-compose-local.yml.",
+      "vps_runtime": "Ubuntu VPS uses Docker Swarm with Traefik via docker-compose-vps.yml; keep it configured but do not deploy unless asked.",
+      "skills": [
+        "docker-compose-generator",
+        "env-generator",
+        "dockerfile-builder",
+        "infrastructure-bridge-gate"
+      ]
+    },
+    "workspace_runtime": {
+      "path": ".bawe-runtime/",
+      "playwright_browsers_path": ".bawe-runtime/ms-playwright",
+      "playwright_install_deps_command": "npx playwright install --with-deps chromium",
+      "playwright_install_deps_status": "verified_working_ubuntu_24.04.5",
+      "package_manager_commands": [
+        "npm",
+        "npx"
+      ],
+      "browser_fallbacks": [
+        "/usr/bin/google-chrome",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/chromium"
+      ],
+      "browser_fallbacks_status": "not_present_by_default_verified_ubuntu_24.04.5_requires_explicit_apt_install",
+      "zip_tool": {
+        "type": "7zip-bin",
+        "resolve_via": "require('7zip-bin').path7za",
+        "path": ".bawe-runtime/node_modules/7zip-bin/linux/x64/7za",
+        "path_status": "verified_ubuntu_24.04.5",
+        "supports": "zip-aes-password"
+      }
+    }
+  },
+  "declared_not_installed": [
+    "runtime contract validator script",
+    "global closure implementation",
+    "split implementation lane for backend",
+    "split implementation lane for frontend"
+  ],
+  "normal_flow_exclusions": [
+    "manual laboratory control",
+    "pause and restart artifacts",
+    "runtime identity stamps",
+    "mandatory transfer chains",
+    "universal validation dossiers",
+    "rigid downstream implementation lanes"
+  ]
+}

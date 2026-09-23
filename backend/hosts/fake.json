@@ -1,0 +1,10 @@
+{
+  "name": "fake",
+  "type": "node-process",
+  "command": "node",
+  "args": ["processes/fake-host.js"],
+  "cwd": "./backend",
+  "mode": "persistent",
+  "input": "stdin",
+  "output": "stdout"
+}
