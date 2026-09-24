@@ -19,7 +19,7 @@ type CodexBridgeConfig = {
   bridgeUrl: string;
   command: string;
   args?: string[];
-  cwd: string;
+  cwd?: string;
   mode: 'spawn-per-message' | 'session-resume';
   timeoutMs?: number;
 };
@@ -52,9 +52,6 @@ function loadCodexBridgeConfig(): CodexBridgeConfig {
   if (!bridgeUrl) {
     throw new Error(`[CODEX HOST] campo obligatorio faltante: "bridgeUrl"`);
   }
-  if (!cwd) {
-    throw new Error(`[CODEX HOST] campo obligatorio faltante: "cwd"`);
-  }
 
   return { ...config, bridgeUrl, cwd, command };
 }
@@ -72,7 +69,7 @@ export class CodexHostAdapter implements IHostAdapter {
     this.config = loadCodexBridgeConfig();
     console.log(`[CODEX HOST] CodexHostAdapter inicializado`);
     console.log(`[CODEX HOST] bridge configurado: ${this.config.bridgeUrl}`);
-    console.log(`[CODEX HOST] cwd configurado: ${this.config.cwd}`);
+    console.log(`[CODEX HOST] cwd configurado: ${this.config.cwd || '(autoubicado por el bridge)'}`);
   }
 
   async start(sessionId: string): Promise<void> {
@@ -187,7 +184,7 @@ export class CodexHostAdapter implements IHostAdapter {
 
     try {
       slog(`[CODEX HOST] bridgeUrl: ${this.config.bridgeUrl}`);
-      slog(`[CODEX HOST] cwd host: ${this.config.cwd}`);
+      slog(`[CODEX HOST] cwd host: ${this.config.cwd || '(autoubicado por el bridge)'}`);
 
       const res = await fetch(this.config.bridgeUrl, {
         method: 'POST',
@@ -195,7 +192,7 @@ export class CodexHostAdapter implements IHostAdapter {
         body: JSON.stringify({
           sessionId,
           message: prompt,
-          cwd: this.config.cwd,
+          ...(this.config.cwd ? { cwd: this.config.cwd } : {}),
           command: this.config.command,
           args: this.config.args || [],
           timeoutMs

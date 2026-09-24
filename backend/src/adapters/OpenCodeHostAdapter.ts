@@ -20,7 +20,7 @@ type OpenCodeBridgeConfig = {
   type: 'http-bridge';
   bridgeUrl: string;
   command: string;
-  cwd: string;
+  cwd?: string;
   mode: 'spawn-per-message' | 'session-resume';
   timeoutMs?: number;
 };
@@ -53,9 +53,6 @@ function loadOpenCodeBridgeConfig(): OpenCodeBridgeConfig {
   if (!bridgeUrl) {
     throw new Error(`[OPENCODE HOST] campo obligatorio faltante: "bridgeUrl"`);
   }
-  if (!cwd) {
-    throw new Error(`[OPENCODE HOST] campo obligatorio faltante: "cwd"`);
-  }
 
   return { ...config, bridgeUrl, cwd, command };
 }
@@ -73,7 +70,7 @@ export class OpenCodeHostAdapter implements IHostAdapter {
     this.config = loadOpenCodeBridgeConfig();
     console.log(`[OPENCODE HOST] OpenCodeHostAdapter inicializado`);
     console.log(`[OPENCODE HOST] bridge configurado: ${this.config.bridgeUrl}`);
-    console.log(`[OPENCODE HOST] cwd configurado: ${this.config.cwd}`);
+    console.log(`[OPENCODE HOST] cwd configurado: ${this.config.cwd || '(autoubicado por el bridge)'}`);
   }
 
   async start(sessionId: string): Promise<void> {
@@ -183,7 +180,7 @@ export class OpenCodeHostAdapter implements IHostAdapter {
 
     try {
       slog(`[OPENCODE HOST] bridgeUrl: ${this.config.bridgeUrl}`);
-      slog(`[OPENCODE HOST] cwd host: ${this.config.cwd}`);
+      slog(`[OPENCODE HOST] cwd host: ${this.config.cwd || '(autoubicado por el bridge)'}`);
 
       const res = await fetch(this.config.bridgeUrl, {
         method: 'POST',
@@ -191,7 +188,7 @@ export class OpenCodeHostAdapter implements IHostAdapter {
         body: JSON.stringify({
           sessionId,
           message: prompt,
-          cwd: this.config.cwd,
+          ...(this.config.cwd ? { cwd: this.config.cwd } : {}),
           command: this.config.command,
           timeoutMs
         }),

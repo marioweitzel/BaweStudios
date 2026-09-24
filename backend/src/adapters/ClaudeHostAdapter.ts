@@ -19,7 +19,7 @@ type ClaudeBridgeConfig = {
   type: 'http-bridge';
   bridgeUrl: string;
   command: string;
-  cwd: string;
+  cwd?: string;
   mode: 'spawn-per-message' | 'session-resume';
   timeoutMs?: number;
 };
@@ -52,9 +52,6 @@ function loadClaudeBridgeConfig(): ClaudeBridgeConfig {
   if (!bridgeUrl) {
     throw new Error(`[CLAUDE HOST] campo obligatorio faltante: "bridgeUrl"`);
   }
-  if (!cwd) {
-    throw new Error(`[CLAUDE HOST] campo obligatorio faltante: "cwd"`);
-  }
 
   return { ...config, bridgeUrl, cwd, command };
 }
@@ -72,7 +69,7 @@ export class ClaudeHostAdapter implements IHostAdapter {
     this.config = loadClaudeBridgeConfig();
     console.log(`[CLAUDE HOST] ClaudeHostAdapter inicializado`);
     console.log(`[CLAUDE HOST] bridge configurado: ${this.config.bridgeUrl}`);
-    console.log(`[CLAUDE HOST] cwd configurado: ${this.config.cwd}`);
+    console.log(`[CLAUDE HOST] cwd configurado: ${this.config.cwd || '(autoubicado por el bridge)'}`);
   }
 
   async start(sessionId: string): Promise<void> {
@@ -182,7 +179,7 @@ export class ClaudeHostAdapter implements IHostAdapter {
 
     try {
       slog(`[CLAUDE HOST] bridgeUrl: ${this.config.bridgeUrl}`);
-      slog(`[CLAUDE HOST] cwd host: ${this.config.cwd}`);
+      slog(`[CLAUDE HOST] cwd host: ${this.config.cwd || '(autoubicado por el bridge)'}`);
 
       const res = await fetch(this.config.bridgeUrl, {
         method: 'POST',
@@ -190,7 +187,7 @@ export class ClaudeHostAdapter implements IHostAdapter {
         body: JSON.stringify({
           sessionId,
           message: prompt,
-          cwd: this.config.cwd,
+          ...(this.config.cwd ? { cwd: this.config.cwd } : {}),
           command: this.config.command,
           timeoutMs
         }),
