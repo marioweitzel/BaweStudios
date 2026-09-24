@@ -35,6 +35,7 @@ services:
       REDIS_HOST: redis
       HOST_ADAPTER: ${HOST_ADAPTER:-codex}
       BAWE_PROJECTS_ROOT: /workspace/bawestudios
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:10040}
       BAWE_TOPOLOGY: ${BAWE_TOPOLOGY:-local}
       BAWE_PUBLIC_BASE_URL: ${BAWE_PUBLIC_BASE_URL:-}
     volumes:
