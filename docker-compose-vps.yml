@@ -86,7 +86,7 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.docker.network=bawenet"
-        - "traefik.http.routers.bawestudioslinux.rule=Host(`${BAWE_DOMAIN:-bawestudios.ar}`)"
+        - "traefik.http.routers.bawestudioslinux.rule=Host(`${BAWE_DOMAIN:-bawestudios.com.ar}`)"
         - "traefik.http.routers.bawestudioslinux.entrypoints=websecure"
         - "traefik.http.routers.bawestudioslinux.tls.certresolver=letsencryptresolver"
         - "traefik.http.services.bawestudioslinux.loadbalancer.server.port=80"
