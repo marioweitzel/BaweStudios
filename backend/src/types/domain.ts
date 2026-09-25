@@ -1,4 +1,4 @@
-export type HostWaitResult = { text: string | null; retry: boolean };
+export type HostWaitResult = { text: string | null; retry: boolean; rateLimited?: boolean };
 
 export type StoredUser = { id: string; email: string; name: string; hash: string; workspace_user_id?: string };
 

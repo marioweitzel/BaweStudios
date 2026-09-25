@@ -144,6 +144,17 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
         return { text: hostStatus.text, retry: false };
       }
 
+      if (hostStatus?.status === 'rate_limited') {
+        deps.recordHostTurnEvent({
+          projectId,
+          userId,
+          sessionId,
+          eventType: 'background.job.host_poll_rate_limited',
+          payload: { attempt, hostStatus }
+        });
+        return { text: null, retry: false, rateLimited: true };
+      }
+
       deps.recordHostTurnEvent({
         projectId,
         userId,
@@ -153,6 +164,43 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
       });
       return { text: null, retry: hostStatus?.status === 'failed' || hostStatus?.status === 'not_found' };
     }
+  }
+
+  // Rate limit detectado mientras se hacia poll de una sesion ya activa (no en
+  // la respuesta sincronica del POST inicial) -- el bridge nunca expone un
+  // resetAt exacto en /status (solo en la respuesta de rate-limit del POST),
+  // asi que aca siempre se estima con la misma ventana de fallback que usa el
+  // otro camino de rate limit. Persistido en host_jobs.resume_at igual que el
+  // otro camino, para que sobreviva a un reinicio del backend.
+  async function handleBackgroundRateLimit(args: {
+    projectId: string;
+    userId: string;
+    sessionId: string;
+    command: string | null;
+    attempt: number;
+    chainStartedAtIso: string;
+  }) {
+    const { projectId, userId, sessionId, command, attempt, chainStartedAtIso } = args;
+    const resumeAt = estimateSessionResumeAt(chainStartedAtIso);
+    await deps.upsertHostJob({
+      projectId,
+      userId,
+      sessionId,
+      status: 'rate_limited',
+      command,
+      error: 'Host alcanzo el limite de uso/sesion (detectado durante poll de estado)',
+      attempts: attempt,
+      resumeAt
+    });
+    deps.recordHostTurnEvent({
+      projectId,
+      userId,
+      sessionId,
+      eventType: 'background.job.rate_limited',
+      payload: { attempt, resumeAt, source: 'poll_estimated', chainStartedAt: chainStartedAtIso }
+    });
+    const waitMs = Math.max(0, new Date(resumeAt).getTime() - Date.now());
+    await sleep(waitMs);
   }
 
   async function processDevelopmentResponse(args: {
@@ -274,6 +322,17 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
             command: existingJob.command,
             attempt: Number(existingJob.attempts || attempt)
           });
+          if (hostResponse.rateLimited) {
+            await handleBackgroundRateLimit({
+              projectId,
+              userId,
+              sessionId: existingJob.bs_session_id,
+              command: existingJob.command,
+              attempt: Number(existingJob.attempts || attempt),
+              chainStartedAtIso
+            });
+            continue;
+          }
           if (hostResponse.text) {
             const result = await processDevelopmentResponse({
               project,
@@ -378,6 +437,10 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
             payload: { attempt, hostStatus: error.hostStatus || null }
           });
           const hostResponse = await waitForHostSessionResult({ projectId, userId, sessionId, command, attempt });
+          if (hostResponse.rateLimited) {
+            await handleBackgroundRateLimit({ projectId, userId, sessionId, command, attempt, chainStartedAtIso });
+            continue;
+          }
           if (hostResponse.text) {
             const result = await processDevelopmentResponse({ project, projectId, userId, sessionId, command, attempt, responseText: hostResponse.text });
             if (result === 'continue') {
@@ -407,6 +470,10 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
             payload: { attempt, error: error.message, hostStatus }
           });
           const hostResponse = await waitForHostSessionResult({ projectId, userId, sessionId, command, attempt });
+          if (hostResponse.rateLimited) {
+            await handleBackgroundRateLimit({ projectId, userId, sessionId, command, attempt, chainStartedAtIso });
+            continue;
+          }
           if (hostResponse.text) {
             const result = await processDevelopmentResponse({ project, projectId, userId, sessionId, command, attempt, responseText: hostResponse.text });
             if (result === 'continue') {
