@@ -40,6 +40,28 @@ type HostJobEvent = {
   resumeAt?: string | null;
 };
 
+// Cortes transitorios de conexion (ej. blip de red entre el backend y el
+// contenedor de MySQL) no deben tirar abajo procesos de larga duracion como
+// los jobs de background -- un solo query fallido ahi mataba el job entero
+// sin dejar nada recuperable hasta el proximo restart del backend. Reintenta
+// solo errores de conexion reconocibles, nunca errores de datos/SQL real.
+const TRANSIENT_DB_ERROR = /ECONNRESET|PROTOCOL_CONNECTION_LOST|ETIMEDOUT|ECONNREFUSED|EPIPE/i;
+
+async function withDbRetry<T>(fn: () => Promise<T>, retries = 3, delayMs = 1000): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const message = err instanceof Error ? err.message : String(err);
+      if (!TRANSIENT_DB_ERROR.test(message) || attempt === retries) throw err;
+      await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
+    }
+  }
+  throw lastErr;
+}
+
 export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps) {
   let dbCache: DbShape = { users: [], projects: [], chatHistories: [] };
   let dbPool: Pool | null = null;
@@ -377,7 +399,7 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
   function recordHostTurnEvent(event: HostTurnEvent) {
     if (!dbPool) return;
     const payload = JSON.stringify(event.payload || {});
-    dbPool.query(
+    withDbRetry(() => dbPool!.query(
       `INSERT INTO host_turn_events
         (project_id,user_id,bs_session_id,event_type,payload,created_at)
        VALUES (?,?,?,?,?,?)`,
@@ -389,7 +411,7 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
         payload,
         isoToMysqlDate(new Date().toISOString())
       ]
-    ).catch(err => {
+    )).catch(err => {
       console.error(`[TRACE] Error persistiendo evento host: ${err instanceof Error ? err.message : String(err)}`);
     });
   }
@@ -397,7 +419,7 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
   async function upsertHostJob(event: HostJobEvent) {
     if (!dbPool) return;
     const now = isoToMysqlDate(new Date().toISOString());
-    await dbPool.query(
+    await withDbRetry(() => dbPool!.query(
       `INSERT INTO host_jobs
         (project_id,user_id,bs_session_id,status,command,last_response,error,attempts,started_at,updated_at,finished_at,resume_at)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
@@ -426,7 +448,7 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
         event.finished ? now : null,
         event.resumeAt ? isoToMysqlDate(event.resumeAt) : null
       ]
-    );
+    ));
   }
 
   async function getHostJob(projectId: string): Promise<(RowDataPacket & {
