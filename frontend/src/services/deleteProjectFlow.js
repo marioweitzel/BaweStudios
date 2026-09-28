@@ -4,7 +4,7 @@ async function deleteProject(event,projId,projName){
   var view=currentProjectStateView||projectStateView(null);
   var exec=view.execution_state||'IDLE';
   if(hostPending||exec==='RUNNING'||exec==='STOPPING'){
-    alert('No se puede eliminar un proyecto mientras hay una ejecución activa.');
+    await showDeleteError('No se puede eliminar un proyecto mientras hay una ejecución activa.');
     return;
   }
   var name=projName||'este proyecto';
@@ -25,8 +25,7 @@ async function deleteProject(event,projId,projName){
     renderProjects(allProjects);
     renderChatHistory(allProjects);
   }catch(err){
-    hideDeleteModal();
-    alert('Error: '+err.message);
+    await showDeleteError(err.message);
   }finally{
     deletingProjectId=window.BaweState.setDeletingProjectId(null);
     setUiLocked(false);

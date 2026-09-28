@@ -23,7 +23,7 @@ import { authenticateSocket, type AuthenticatedSocketUser } from '../../auth/soc
 import type { HostManager } from '../../managers/HostManager';
 import type { ExecutionRecord } from '../../services/executionStateService';
 import { debugPanel } from '../../utils/debugPanel';
-import { isFinalContract, isInvalidCommandResponse, isPartialContract } from '../../utils/contracts';
+import { extractChatOptions, isFinalContract, isInvalidCommandResponse, isPartialContract } from '../../utils/contracts';
 import { clientSafeHostError } from '../../utils/hostErrors';
 import { makeSafeName, normalizeProjectName } from '../../utils/names';
 import { detectPendingMotorQueueWork } from '../../utils/projectFiles';
@@ -36,6 +36,12 @@ import {
   buildWebStartCommand,
   buildWebSupportCommand
 } from './webCommands';
+
+// Mismo set que SELECTABLE_ADAPTERS en HostManager.ts -- nombres validos que
+// el selector de CLI del sidebar puede pedir explicitamente al crear un
+// proyecto nuevo. Cualquier otro valor (incluido undefined) deja el
+// comportamiento de siempre (HOST_ADAPTER del backend).
+const SELECTABLE_HOST_ADAPTERS = new Set(['claude-code', 'codex', 'opencode']);
 
 type ChatSender = 'user' | 'agent' | 'system';
 
@@ -199,6 +205,17 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     upsertHostJob,
     userFromJwtToken
   } = deps;
+
+  // Actividad real del cliente sobre un proyecto ya entregado (Cambios/
+  // Soporte) -- alimenta el reloj de inactividad de 7+7 dias (ver
+  // createInactivityDeletionService). Mientras el proyecto todavia esta
+  // 'building' no aplica: esa fase ya la cubre startStuckJobSupervisor.
+  function touchProjectActivity(projectId: string | null, userId: string | null | undefined) {
+    if (!projectId || !userId) return;
+    const project = readDb().projects.find(p => p.id === projectId && p.userId === userId);
+    if (!project || project.status !== 'ready') return;
+    updateProject(projectId, userId, { lastActivityAt: new Date().toISOString(), inactivityWarnedAt: null });
+  }
   io.on('connection', (socket: Socket) => {
     console.log(`[Socket] Cliente conectado: ${socket.id}`);
     const authenticatedSocketUser = authenticateSocket(socket, { userFromJwtToken });
@@ -220,6 +237,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     let pendingProjectName: string | null = null;
     let pendingProjectNameAnswer: string | null = null;
     let pendingProjectNameSentAtMs: number | null = null;
+    let pendingHostAdapterPreference: string | null = null;
     let answersReceived = 0;
     let cleanupHostListeners = () => {};
     const interviewCompleteNotice = INTERVIEW_COMPLETE_NOTICE;
@@ -302,14 +320,15 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     return true;
   }
 
-  function emitCodexQuestion(text: string) {
+  function emitCodexQuestion(rawText: string) {
     if (recoverCompletedInterview('respuesta_codex')) return;
+    const { cleanText: text, options } = extractChatOptions(rawText);
     recordHostTurnEvent({
       projectId: safeProjectId,
       userId: socketUser?.id,
       sessionId: activeSessionId,
       eventType: 'host.question',
-      payload: { text: text.slice(0, 1000), chatHistoryId: activeChatHistoryId }
+      payload: { text: text.slice(0, 1000), chatHistoryId: activeChatHistoryId, hasOptions: !!options }
     });
     hostBusy = false;
     setExecutionState(safeProjectId, socketUser?.id, activeSessionId, 'IDLE', socket.id);
@@ -319,7 +338,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     setPendingQuestion(activeChatHistoryId, socketUser?.id, text);
     if (safeProjectId) saveChatMessage(safeProjectId, 'agent', text);
     emitProjectUpdate(socket, safeProjectId, socketUser?.id);
-    socket.emit('agent-question', { question: text, chatHistoryId: activeChatHistoryId });
+    socket.emit('agent-question', { question: text, chatHistoryId: activeChatHistoryId, options: options });
   }
 
   function emitAgentNotice(text: string) {
@@ -394,7 +413,8 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
         })
       : createProjectRecord(socketUser.id, projectName, {
           project_path: projectPath,
-          status: 'pending'
+          status: 'pending',
+          preferredHostAdapter: pendingHostAdapterPreference
         });
     if (!project) return null;
     safeProjectId = project.id;
@@ -418,6 +438,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     pendingProjectName = null;
     pendingProjectNameAnswer = null;
     pendingProjectNameSentAtMs = null;
+    pendingHostAdapterPreference = null;
     socket.emit('project:updated', publicProject(linkedProject));
     socket.emit('project-started', {
       projectId: linkedProject.id,
@@ -455,6 +476,10 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
   async function beginProject(data: any) {
     activeSessionIsSupport = false;
     activeSessionIsEdit = false;
+    const requestedHostAdapter = data.hostAdapter || data.host_adapter || null;
+    if (requestedHostAdapter && SELECTABLE_HOST_ADAPTERS.has(requestedHostAdapter)) {
+      pendingHostAdapterPreference = requestedHostAdapter;
+    }
     const userMessage = data.initialMessage || 'comenzar';
     const normalizedMessage = userMessage.trim().toLowerCase();
     let projectFamily = 'web';
@@ -549,6 +574,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
       const activeProject = existingProject || null;
       console.log(`[Socket] Proyecto activo: ${activeProject ? activeProject.project_path : '(pendiente de A1)'}`);
       if (safeProjectId) saveChatMessage(safeProjectId, 'user', userMessage);
+      touchProjectActivity(safeProjectId, socketUser?.id);
 
       if (activeProject && safeProjectId) {
         activeProjects.set(safeProjectId, {
@@ -751,8 +777,12 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
         cleanupHostListeners = () => {};
       };
 
-      // 5. Iniciar el proceso huésped
-      await hostManager.start(sessionId);
+      // 5. Iniciar el proceso huésped. Proyecto existente: su CLI ya elegida
+      // (preferredHostAdapter). Proyecto nuevo: todavia no existe el
+      // registro (se crea recien en confirmPendingProjectNameFromMotor), asi
+      // que se usa lo que el sidebar mando en este mismo mensaje.
+      const adapterForSession = existingProject?.preferredHostAdapter ?? pendingHostAdapterPreference;
+      await hostManager.start(sessionId, adapterForSession);
       debugPanel.setState('initializing', `sessionId: ${sessionId}`);
 
       if (activeProject && safeProjectId) {
@@ -931,7 +961,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
         cleanupHostListeners = () => {};
       };
 
-      await hostManager.start(sessionId);
+      await hostManager.start(sessionId, project.preferredHostAdapter);
 
       hostBusy = true;
       setExecutionState(safeProjectId, socketUser.id, sessionId, 'RUNNING', socket.id);
@@ -1174,7 +1204,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
         cleanupHostListeners = () => {};
       };
 
-      await hostManager.start(sessionId);
+      await hostManager.start(sessionId, project.preferredHostAdapter);
 
       hostBusy = true;
       setExecutionState(safeProjectId, socketUser.id, sessionId, 'RUNNING', socket.id);
@@ -1234,6 +1264,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
         pendingProjectNameSentAtMs = Date.now();
       }
       if (safeProjectId) saveChatMessage(safeProjectId, 'user', userMessage);
+      touchProjectActivity(safeProjectId, socketUser?.id);
 
       debugPanel.setState('processing', `Procesando respuesta: "${userMessage}"`);
       answersReceived++;
@@ -1349,6 +1380,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
         pendingProjectNameSentAtMs = Date.now();
       }
       if (safeProjectId) saveChatMessage(safeProjectId, 'user', userMessage);
+      touchProjectActivity(safeProjectId, socketUser?.id);
       debugPanel.setState('processing', `Procesando respuesta: "${userMessage}"`);
       answersReceived++;
       debugPanel.setAnswersCount(answersReceived);

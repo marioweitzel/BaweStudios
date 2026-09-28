@@ -59,3 +59,20 @@ export async function resolveHealthyAdapter(
   }
   return fallback;
 }
+
+/**
+ * checkAllAdaptersHealth — Para el selector de CLI del sidebar: chequea
+ * TODOS los adapters conocidos en paralelo (no se detiene en el primero que
+ * responda, a diferencia de resolveHealthyAdapter) y devuelve cuales estan
+ * realmente disponibles ahora mismo.
+ */
+export async function checkAllAdaptersHealth(
+  healthUrls: AdapterHealthUrls,
+  timeoutMs = 2000
+): Promise<Record<string, boolean>> {
+  const names = Object.keys(healthUrls);
+  const results = await Promise.all(names.map(name => isHealthy(healthUrls[name], timeoutMs)));
+  const byName: Record<string, boolean> = {};
+  names.forEach((name, i) => { byName[name] = results[i]; });
+  return byName;
+}

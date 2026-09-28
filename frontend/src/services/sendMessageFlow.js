@@ -22,7 +22,7 @@ async function doSendMsg(msg){
     setPendingBubble(true);
     console.log('[Frontend] Emitiendo start-project');
     document.getElementById('chat-proj-sub').textContent='Entrevista en progreso';
-    window.BaweSocket.emit('start-project', { initialMessage: msg, projectFamily: 'web' });
+    window.BaweSocket.emit('start-project', { initialMessage: msg, projectFamily: 'web', hostAdapter: window.BaweSelectedHostAdapter || null });
     window.isFirstQuestion = false; // siguiente mensaje ya va por user-reply
   } else if (activeHostSessionId) {
     var attachment=await uploadSelectedLogo();

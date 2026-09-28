@@ -87,15 +87,17 @@ function showDashView(viewId){
   var el=document.getElementById(viewId);if(el)el.classList.add('active');
 }
 
-function goToProjects(){
+async function goToProjects(){
+  var accepted=await ensureSecurityNoticeAccepted();
+  if(!accepted)return;
   setActiveNav('nav-projects');
   showDashView('view-projects');
   loadProjects({preserveCurrentView:true});
 }
 
 document.getElementById('nav-home').addEventListener('click',function(){setActiveNav('nav-home');showDashView('view-home');});
-document.getElementById('nav-chat').addEventListener('click',function(){if(hostPending)return;if(blockNewProjectIfNeeded())return;setActiveNav('nav-chat');showDashView('view-chat');currentProjectId=window.BaweState.clearCurrentProjectId();resetChat();loadChatHistory();});
-document.getElementById('nav-projects').addEventListener('click',function(){setActiveNav('nav-projects');showDashView('view-projects');loadProjects({preserveCurrentView:true});});
+document.getElementById('nav-chat').addEventListener('click',async function(){if(hostPending)return;if(blockNewProjectIfNeeded())return;var accepted=await ensureScopeDisclaimerAccepted();if(!accepted)return;setActiveNav('nav-chat');showDashView('view-chat');currentProjectId=window.BaweState.clearCurrentProjectId();resetChat();loadChatHistory();});
+document.getElementById('nav-projects').addEventListener('click',function(){goToProjects();});
 document.getElementById('proj-go-chat').addEventListener('click',function(){document.getElementById('nav-chat').click();});
 document.getElementById('btn-new-chat').addEventListener('click',function(){if(hostPending)return;if(blockNewProjectIfNeeded())return;currentProjectId=window.BaweState.clearCurrentProjectId();resetChat();});
 

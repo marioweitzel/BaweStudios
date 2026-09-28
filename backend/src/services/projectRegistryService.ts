@@ -159,6 +159,7 @@ export function createProjectRegistryService(deps: ProjectRegistryDeps) {
       status: extra.status || 'pending',
       previewUrl: extra.previewUrl || '',
       zipUrl: extra.zipUrl || '',
+      preferredHostAdapter: extra.preferredHostAdapter || null,
       createdAt: extra.createdAt || now,
       updatedAt: now,
       created_at: extra.created_at || now,

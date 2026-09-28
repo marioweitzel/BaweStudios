@@ -15,6 +15,7 @@ import { createChatHistoryService } from './services/chatHistoryService';
 import { createDeliveryFieldsService, requireDeliveryInfo } from './services/deliveryService';
 import { createDevelopmentJobService } from './services/developmentJobService';
 import { createEditJobService } from './services/editJobService';
+import { createInactivityDeletionService } from './services/inactivityDeletionService';
 import { createExecutionStateService } from './services/executionStateService';
 import { createLiveProjectUpdatesService } from './services/liveProjectUpdatesService';
 import { createProjectDeletionService } from './services/projectDeletionService';
@@ -175,7 +176,9 @@ async function finalizeProjectDelivery(args: {
     const updatedProject = updateProject(args.project.id, args.userId, {
       status: 'ready',
       previewUrl: delivery.previewUrl,
-      zipUrl: publicProjectDownloadUrl(args.project.id)
+      zipUrl: publicProjectDownloadUrl(args.project.id),
+      lastActivityAt: new Date().toISOString(),
+      inactivityWarnedAt: null
     }) || args.project;
 
     updateChatHistoryTurn(updatedProject.chat_history_id || null, args.userId, {
@@ -304,7 +307,8 @@ const {
 
 const {
   recoverDevelopmentJobsOnStartup,
-  startDevelopmentJob
+  startDevelopmentJob,
+  startStuckJobSupervisor
 } = createDevelopmentJobService({
   buildContinuationCommand: buildWebContinuationCommand,
   finalizeProjectDelivery,
@@ -314,6 +318,7 @@ const {
   hostRuntime,
   readDb,
   recordHostTurnEvent,
+  updateProject,
   upsertHostJob
 });
 
@@ -341,6 +346,28 @@ const {
   signToken,
   userFromJwtToken
 } = createAuth({ jwtSecret: JWT_SECRET, readDb, workspaceUserId });
+
+// Aviso a los 7 dias de inactividad + borrado automatico a los 14 (ver
+// createInactivityDeletionService). Reusa el mismo camino que el boton
+// manual "Eliminar" (sendMotorDeleteCommand + deleteProjectRecord), asi que
+// el fix de tumbar contenedores antes de borrar la carpeta aplica a los dos.
+const {
+  runSweep: runInactivityDeletionSweep,
+  startInactivityDeletionSupervisor
+} = createInactivityDeletionService({
+  readDb,
+  updateProject,
+  deleteProjectRecord,
+  sendMotorDeleteCommand,
+  getExecutionState,
+  recordHostTurnEvent,
+  notifyInactivityWarning: project => {
+    io.to(project.userId).emit('project:updated', publicProject(project));
+  },
+  notifyInactivityDeleted: project => {
+    io.to(project.userId).emit('project:deleted', { projectId: project.id, reason: 'inactivity' });
+  }
+});
 
 registerWebHttpRoutes(app, {
   appendChatHistoryMessage,
@@ -411,6 +438,13 @@ initMysqlStore()
     console.log(`[DB] MySQL store listo: ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}`);
     recoverDevelopmentJobsOnStartup();
     recoverEditJobsOnStartup();
+    startStuckJobSupervisor();
+    // Pasada inmediata al arrancar (no solo esperar al primer tick del
+    // intervalo): si el backend estuvo apagado un tramo, el reloj de 7+7
+    // dias se resuelve solo apenas vuelve a estar arriba, comparando contra
+    // el timestamp absoluto guardado en vez de un contador en memoria.
+    runInactivityDeletionSweep().catch(() => {});
+    startInactivityDeletionSupervisor();
     server.listen(port, () => console.log(`BaweStudio backend listening on port ${port}`));
   })
   .catch(err => {

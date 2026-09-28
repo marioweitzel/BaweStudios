@@ -24,7 +24,7 @@ function confirmProjectDeletion(projectName){
   return new Promise(function(resolve){
     setDeleteModal(
       'Eliminar proyecto',
-      'Esta accion no se puede deshacer. Si confirmas, BaweStudio va a eliminar '+projectName+' y esperara confirmacion del motor.',
+      'Esta acción no se puede deshacer. Si confirmás, BaweStudio va a eliminar completamente '+projectName+'. Asegurate de haber descargado correctamente todos los archivos de tu proyecto antes de ejecutar esta acción.',
       [
         {label:'Cancelar',kind:'secondary',onClick:function(){hideDeleteModal();resolve(false);}},
         {label:'Eliminar',kind:'danger',onClick:function(){resolve(true);}}
@@ -35,15 +35,26 @@ function confirmProjectDeletion(projectName){
 }
 
 function showDeleteProgress(projectName){
-  setDeleteModal('Eliminando proyecto','BaweStudio esta eliminando '+projectName+'. Esto puede tardar unos segundos porque debe confirmarlo el motor.',[],true);
+  setDeleteModal('Eliminando proyecto','BaweStudio está eliminando '+projectName+'. Esto puede tardar unos segundos.',[],true);
 }
 
 function showDeleteSuccess(projectName){
   return new Promise(function(resolve){
     setDeleteModal(
-      'Eliminacion exitosa',
-      projectName+' fue eliminado correctamente.',
+      'Eliminación exitosa',
+      projectName+' fue eliminado correctamente. Gracias por confiar en BaweStudio y por tu compromiso en ayudarnos a mantener la seguridad de tus datos y tu propiedad intelectual. Seguí disfrutando de la herramienta.',
       [{label:'Cerrar',kind:'primary',onClick:function(){hideDeleteModal();resolve();}}],
+      false
+    );
+  });
+}
+
+function showDeleteError(message){
+  return new Promise(function(resolve){
+    setDeleteModal(
+      'No se pudo eliminar',
+      message,
+      [{label:'Aceptar',kind:'primary',onClick:function(){hideDeleteModal();resolve();}}],
       false
     );
   });

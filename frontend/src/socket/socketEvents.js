@@ -6,7 +6,7 @@ socket.on('agent-question', function(data) {
   removeTemporaryNotices();
   lastAgentQuestionText=window.BaweState.setLastAgentQuestionText(data.question||'');
   if(!isBrandAssetsQuestion(lastAgentQuestionText))clearSelectedLogo();
-  appendChatMessage('agent', lastAgentQuestionText, true);
+  appendChatMessage('agent', lastAgentQuestionText, true, null, data.options);
   setUiLocked(false);
 });
 
@@ -190,6 +190,17 @@ socket.on('project:updated', function(data) {
     renderCentralProjectInfo(project,{preserveMessages:true});
     if(projectState(project)==='PROJECT_FINISHED')renderDeliveryPanel(project);
   }
+});
+
+// BaweStudio borro el proyecto solo por 14 dias de inactividad (ver
+// createInactivityDeletionService, backend). A diferencia del boton manual
+// "Eliminar" (que ya sabe que borro, por eso llama a loadProjects() directo),
+// esto puede llegar en cualquier momento sin que el usuario haya hecho nada.
+socket.on('project:deleted', function(data) {
+  if(!data || !data.projectId)return;
+  var wasActive=currentProjectId===data.projectId;
+  loadProjects({preserveCurrentView:!wasActive});
+  if(wasActive)navigateAfterActiveProjectDeleted();
 });
 
 socket.on('project-name-captured', function(data) {

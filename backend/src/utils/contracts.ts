@@ -7,6 +7,8 @@ import {
   EXTENSION_QUEUE_READY_SIGNAL,
   FINAL_CONTRACT_TEXT,
   INVALID_COMMAND_TEXT,
+  OPTIONS_BLOCK_END,
+  OPTIONS_BLOCK_START,
   PARTIAL_CONTRACT_TEXT,
   SUPPORT_RESPONSE_END,
   SUPPORT_RESPONSE_START
@@ -89,4 +91,49 @@ export function isEditPartialContract(text: string | null | undefined) {
 
 export function isEditFinishedContract(text: string | null | undefined) {
   return String(text || '').includes(EDIT_FINISHED_MARKER);
+}
+
+export type ParsedChatOptions = { multiple: boolean; items: string[]; hasOtra: boolean };
+
+/**
+ * Extrae el bloque [[BAWE_OPCIONES]]...[[/BAWE_OPCIONES]] (formato acordado
+ * con Motor 24/9/2026) de una respuesta del host, si lo trae. Nunca lanza:
+ * si el bloque falta, esta mal formado o no tiene items numerados, devuelve
+ * options:null y cleanText es el texto original sin tocar -- el chat sigue
+ * funcionando como texto plano de siempre, la UI de opciones es un extra.
+ */
+export function extractChatOptions(text: string | null | undefined): { cleanText: string; options: ParsedChatOptions | null } {
+  const raw = String(text || '');
+  const startIdx = raw.indexOf(OPTIONS_BLOCK_START);
+  const endIdx = raw.indexOf(OPTIONS_BLOCK_END);
+  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
+    return { cleanText: raw.trim(), options: null };
+  }
+
+  const inner = raw.slice(startIdx + OPTIONS_BLOCK_START.length, endIdx);
+  const cleanText = (raw.slice(0, startIdx) + raw.slice(endIdx + OPTIONS_BLOCK_END.length)).trim();
+
+  let multiple = false;
+  const items: string[] = [];
+  let hasOtra = false;
+  for (const rawLine of inner.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const multipleMatch = line.match(/^multiple:\s*(true|false)/i);
+    if (multipleMatch) {
+      multiple = multipleMatch[1].toLowerCase() === 'true';
+      continue;
+    }
+    const itemMatch = line.match(/^\d+\.\s*(.+)/);
+    if (itemMatch) {
+      items.push(itemMatch[1].trim());
+      continue;
+    }
+    if (/^otra$/i.test(line)) {
+      hasOtra = true;
+    }
+  }
+
+  if (!items.length) return { cleanText, options: null };
+  return { cleanText, options: { multiple, items, hasOtra } };
 }

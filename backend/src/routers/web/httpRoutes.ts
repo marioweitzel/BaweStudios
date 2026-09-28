@@ -12,6 +12,7 @@ import { workspaceUserId } from '../../utils/names';
 import { readDeliveryInfo, requireDeliveryInfo } from '../../services/deliveryService';
 import { buildChatHistoryPdf } from '../../services/chatHistoryPdfService';
 import { rateLimiter } from '../../middleware/rateLimiter';
+import { checkAllAdaptersHealth, DEFAULT_ADAPTER_HEALTH_URLS } from '../../host-runtimes/HostRuntimeDetector';
 
 type HostTurnEvent = {
   projectId?: string | null;
@@ -67,6 +68,15 @@ export function registerWebHttpRoutes(app: Application, deps: RegisterWebHttpRou
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
   app.get('/api/hello', (_req, res) => res.json({ message: 'Hola desde BaweStudio backend' }));
 
+  // Selector de CLI del sidebar: que opciones mostrar habilitadas. Un
+  // bridge responde /health solo si su CLI esta instalada y el proceso esta
+  // vivo (ver HostRuntimeDetector.ts) -- una sola señal, nunca desacoplada
+  // de si el usuario realmente puede usar esa CLI ahora mismo.
+  app.get('/api/hosts/available', deps.authMiddleware, async (_req, res) => {
+    const health = await checkAllAdaptersHealth(DEFAULT_ADAPTER_HEALTH_URLS, Number(process.env.HOST_DETECT_TIMEOUT_MS || 2000));
+    res.json({ hosts: health });
+  });
+
   app.post('/api/auth/register', registerRateLimiter, async (req, res) => {
     const { email, password, name } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'email y password son requeridos' });
@@ -102,6 +112,33 @@ export function registerWebHttpRoutes(app: Application, deps: RegisterWebHttpRou
   app.get('/api/auth/me', deps.authMiddleware, (req, res) => {
     const user = deps.findUserById((req as any).user.id);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json(deps.publicUser(user));
+  });
+
+  // Disclaimer de alcance (BaweStudio construye sitios web, nunca apps
+  // instalables; el resultado depende del detalle brindado en la
+  // entrevista) -- se pide una sola vez por usuario, antes de habilitar el
+  // chat de "Nuevo Proyecto". Queda registrado con fecha para respaldo ante
+  // reclamos, y se repite en cada hoja de historial.pdf.
+  app.post('/api/auth/accept-disclaimer', deps.authMiddleware, (req, res) => {
+    const db = deps.readDb();
+    const user = db.users.find((u: StoredUser) => u.id === (req as any).user.id);
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    user.scopeDisclaimerAcceptedAt = new Date().toISOString();
+    deps.writeDb(db);
+    res.json(deps.publicUser(user));
+  });
+
+  // Aviso de seguridad al entrar a "Proyectos": se recomienda eliminar el
+  // proyecto al quedar conforme con la web entregada; de lo contrario,
+  // BaweStudio lo borra solo tras 14 dias de inactividad (ver
+  // createInactivityDeletionService). Se pide una sola vez por usuario.
+  app.post('/api/auth/accept-security-notice', deps.authMiddleware, (req, res) => {
+    const db = deps.readDb();
+    const user = db.users.find((u: StoredUser) => u.id === (req as any).user.id);
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    user.securityNoticeAcceptedAt = new Date().toISOString();
+    deps.writeDb(db);
     res.json(deps.publicUser(user));
   });
 
@@ -264,6 +301,9 @@ export function registerWebHttpRoutes(app: Application, deps: RegisterWebHttpRou
   app.get('/api/projects/:id/preview', deps.authMiddleware, (req, res) => {
     const project = deps.readDb().projects.find((p: StoredProject) => p.id === req.params.id && p.userId === (req as any).user.id);
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
+    if (project.status === 'ready') {
+      deps.updateProject(project.id, (req as any).user.id, { lastActivityAt: new Date().toISOString(), inactivityWarnedAt: null });
+    }
     let delivery: DeliveryInfo | null = null;
     try {
       delivery = readDeliveryInfo(project);
@@ -298,7 +338,7 @@ export function registerWebHttpRoutes(app: Application, deps: RegisterWebHttpRou
     const project = deps.readDb().projects.find((p: StoredProject) => p.id === req.params.id && p.userId === userId);
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
     if (['RUNNING', 'STOPPING'].includes(deps.getExecutionState(project.id))) {
-      return res.status(409).json({ error: 'No se puede eliminar un proyecto con una ejecuciÃ³n activa.' });
+      return res.status(409).json({ error: 'No se puede eliminar un proyecto con una ejecución activa.' });
     }
 
     try {
@@ -319,7 +359,7 @@ export function registerWebHttpRoutes(app: Application, deps: RegisterWebHttpRou
         payload: { error: message }
       });
       res.status(502).json({
-        error: 'No se pudo confirmar la eliminaciÃ³n con el motor. IntentÃ¡ nuevamente en unos segundos.'
+        error: 'Estamos atravesando una falla en el sistema. Intentá nuevamente en unos segundos. De persistir este mensaje, contactate con soporte dentro de tu proyecto. ¡Gracias!'
       });
     }
   });
@@ -357,8 +397,12 @@ export function registerWebHttpRoutes(app: Application, deps: RegisterWebHttpRou
   app.get('/api/projects/:id/history.pdf', deps.fileAuthMiddleware, (req, res) => {
     const project = deps.readDb().projects.find((p: StoredProject) => p.id === req.params.id && p.userId === (req as any).user.id);
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
+    if (project.status === 'ready') {
+      deps.updateProject(project.id, (req as any).user.id, { lastActivityAt: new Date().toISOString(), inactivityWarnedAt: null });
+    }
     const messages = deps.getConfirmedChatMessagesForProject(project.id);
-    const pdf = buildChatHistoryPdf(project, messages);
+    const owner = deps.findUserById((req as any).user.id);
+    const pdf = buildChatHistoryPdf(project, messages, { scopeDisclaimerAcceptedAt: owner?.scopeDisclaimerAcceptedAt });
     const filename = `${(project.project_name || project.name || 'proyecto').replace(/[^\w.-]+/g, '_')}-historial.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

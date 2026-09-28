@@ -26,7 +26,9 @@ export function createAuth(deps: AuthDeps) {
       id: user.id,
       email: user.email,
       name: user.name,
-      workspace_user_id: user.workspace_user_id || deps.workspaceUserId(user.id)
+      workspace_user_id: user.workspace_user_id || deps.workspaceUserId(user.id),
+      scope_disclaimer_accepted_at: user.scopeDisclaimerAcceptedAt || null,
+      security_notice_accepted_at: user.securityNoticeAcceptedAt || null
     };
   }
 

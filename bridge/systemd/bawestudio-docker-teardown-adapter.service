@@ -1,0 +1,16 @@
+[Unit]
+Description=BaweStudio - docker-teardown-adapter (puerto 5011)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/BaweStudiosLinux
+Environment=DOCKER_TEARDOWN_PORT=5011
+Environment=DOCKER_TEARDOWN_PROJECTS_ROOT=/home/ubuntu/BaweStudiosLinux/root/bawestudios
+ExecStart=/usr/bin/node /home/ubuntu/BaweStudiosLinux/bridge/src/docker-teardown-adapter.js
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

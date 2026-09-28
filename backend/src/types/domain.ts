@@ -1,6 +1,6 @@
 export type HostWaitResult = { text: string | null; retry: boolean; rateLimited?: boolean };
 
-export type StoredUser = { id: string; email: string; name: string; hash: string; workspace_user_id?: string };
+export type StoredUser = { id: string; email: string; name: string; hash: string; workspace_user_id?: string; scopeDisclaimerAcceptedAt?: string | null; securityNoticeAcceptedAt?: string | null };
 
 export type StoredProject = {
   id: string;
@@ -16,6 +16,9 @@ export type StoredProject = {
   status: 'building' | 'ready' | 'failed' | 'pending';
   previewUrl: string;
   zipUrl: string;
+  preferredHostAdapter?: string | null;
+  lastActivityAt?: string | null;
+  inactivityWarnedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   created_at: string;

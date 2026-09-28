@@ -95,7 +95,9 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
         email VARCHAR(255) NOT NULL UNIQUE,
         name VARCHAR(255) NOT NULL,
         hash VARCHAR(255) NOT NULL,
-        workspace_user_id VARCHAR(255) NULL
+        workspace_user_id VARCHAR(255) NULL,
+        scope_disclaimer_accepted_at DATETIME(3) NULL,
+        security_notice_accepted_at DATETIME(3) NULL
       )
     `);
 
@@ -113,6 +115,9 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
         status VARCHAR(40) NOT NULL,
         preview_url TEXT NULL,
         zip_url TEXT NULL,
+        preferred_host_adapter VARCHAR(20) NULL,
+        last_activity_at DATETIME(3) NULL,
+        inactivity_warned_at DATETIME(3) NULL,
         created_at DATETIME(3) NOT NULL,
         updated_at DATETIME(3) NOT NULL,
         INDEX idx_projects_user (user_id)
@@ -184,6 +189,65 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
       await dbPool.query(`ALTER TABLE host_jobs ADD COLUMN resume_at DATETIME(3) NULL`);
     }
 
+    // Migracion incremental: projects ya existia sin esta columna en
+    // instalaciones previas. Guarda la CLI que el usuario eligio en el
+    // selector del sidebar al crear el proyecto (null = comportamiento por
+    // defecto de siempre, HOST_ADAPTER del backend).
+    const [preferredAdapterColumn] = await dbPool.query<RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'projects' AND COLUMN_NAME = 'preferred_host_adapter'`
+    );
+    if (preferredAdapterColumn.length === 0) {
+      await dbPool.query(`ALTER TABLE projects ADD COLUMN preferred_host_adapter VARCHAR(20) NULL`);
+    }
+
+    // Migracion incremental: users ya existia sin esta columna en instalaciones
+    // previas. Registra cuando el cliente confirmo haber leido y entendido el
+    // disclaimer de alcance (BaweStudio solo construye web, el resultado
+    // depende del detalle brindado en la entrevista) -- respaldo ante quejas,
+    // se imprime en cada encabezado de historial.pdf.
+    const [disclaimerColumn] = await dbPool.query<RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'scope_disclaimer_accepted_at'`
+    );
+    if (disclaimerColumn.length === 0) {
+      await dbPool.query(`ALTER TABLE users ADD COLUMN scope_disclaimer_accepted_at DATETIME(3) NULL`);
+    }
+
+    // Migracion incremental: users ya existia sin esta columna en instalaciones
+    // previas. Registra cuando el cliente confirmo el aviso de seguridad que se
+    // muestra al entrar a "Proyectos" (se recomienda eliminar el proyecto al
+    // quedar conforme, y de lo contrario BaweStudio lo borra solo tras 14 dias
+    // de inactividad -- ver createInactivityDeletionService).
+    const [securityNoticeColumn] = await dbPool.query<RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'security_notice_accepted_at'`
+    );
+    if (securityNoticeColumn.length === 0) {
+      await dbPool.query(`ALTER TABLE users ADD COLUMN security_notice_accepted_at DATETIME(3) NULL`);
+    }
+
+    // Migracion incremental: projects ya existia sin estas columnas en
+    // instalaciones previas. last_activity_at se pisa en cada mensaje de
+    // Cambios/Soporte y en cada acceso a preview/historial.pdf de un proyecto
+    // 'ready'; inactivity_warned_at marca cuando se mando el aviso de 7 dias
+    // (para no repetirlo en cada pasada del supervisor, y se limpia en cuanto
+    // vuelve la actividad).
+    const [lastActivityColumn] = await dbPool.query<RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'projects' AND COLUMN_NAME = 'last_activity_at'`
+    );
+    if (lastActivityColumn.length === 0) {
+      await dbPool.query(`ALTER TABLE projects ADD COLUMN last_activity_at DATETIME(3) NULL`);
+    }
+    const [inactivityWarnedColumn] = await dbPool.query<RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'projects' AND COLUMN_NAME = 'inactivity_warned_at'`
+    );
+    if (inactivityWarnedColumn.length === 0) {
+      await dbPool.query(`ALTER TABLE projects ADD COLUMN inactivity_warned_at DATETIME(3) NULL`);
+    }
+
     // Adjuntos del flujo "cambios": el nombre real que llega del cliente
     // nunca se usa tal cual (puede repetirse entre turnos/clientes) — el
     // nombre que efectivamente se escribe en [PROJECT_ROOT] y se manda al
@@ -237,7 +301,9 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
         email: String(row.email),
         name: String(row.name || ''),
         hash: String(row.hash),
-        workspace_user_id: row.workspace_user_id ? String(row.workspace_user_id) : undefined
+        workspace_user_id: row.workspace_user_id ? String(row.workspace_user_id) : undefined,
+        scopeDisclaimerAcceptedAt: row.scope_disclaimer_accepted_at ? mysqlDateToIso(row.scope_disclaimer_accepted_at) : null,
+        securityNoticeAcceptedAt: row.security_notice_accepted_at ? mysqlDateToIso(row.security_notice_accepted_at) : null
       })),
       projects: projectRows.map(row => ({
         id: String(row.id),
@@ -253,6 +319,9 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
         status: (row.status || 'pending') as StoredProject['status'],
         previewUrl: String(row.preview_url || ''),
         zipUrl: String(row.zip_url || ''),
+        preferredHostAdapter: row.preferred_host_adapter ? String(row.preferred_host_adapter) : null,
+        lastActivityAt: row.last_activity_at ? mysqlDateToIso(row.last_activity_at) : null,
+        inactivityWarnedAt: row.inactivity_warned_at ? mysqlDateToIso(row.inactivity_warned_at) : null,
         createdAt: mysqlDateToIso(row.created_at),
         updatedAt: mysqlDateToIso(row.updated_at),
         created_at: mysqlDateToIso(row.created_at),
@@ -296,23 +365,33 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
 
       for (const user of snapshot.users) {
         await conn.query<ResultSetHeader>(
-          `INSERT INTO users (id,email,name,hash,workspace_user_id)
-           VALUES (?,?,?,?,?)
-           ON DUPLICATE KEY UPDATE email=VALUES(email), name=VALUES(name), hash=VALUES(hash), workspace_user_id=VALUES(workspace_user_id)`,
-          [user.id, user.email, user.name, user.hash, user.workspace_user_id || deps.workspaceUserId(user.id)]
+          `INSERT INTO users (id,email,name,hash,workspace_user_id,scope_disclaimer_accepted_at,security_notice_accepted_at)
+           VALUES (?,?,?,?,?,?,?)
+           ON DUPLICATE KEY UPDATE email=VALUES(email), name=VALUES(name), hash=VALUES(hash), workspace_user_id=VALUES(workspace_user_id), scope_disclaimer_accepted_at=VALUES(scope_disclaimer_accepted_at), security_notice_accepted_at=VALUES(security_notice_accepted_at)`,
+          [
+            user.id,
+            user.email,
+            user.name,
+            user.hash,
+            user.workspace_user_id || deps.workspaceUserId(user.id),
+            user.scopeDisclaimerAcceptedAt ? isoToMysqlDate(user.scopeDisclaimerAcceptedAt) : null,
+            user.securityNoticeAcceptedAt ? isoToMysqlDate(user.securityNoticeAcceptedAt) : null
+          ]
         );
       }
 
       for (const project of snapshot.projects) {
         await conn.query<ResultSetHeader>(
           `INSERT INTO projects
-            (id,project_id,user_id,chat_history_id,name,project_name,project_path,description,type,status,preview_url,zip_url,created_at,updated_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            (id,project_id,user_id,chat_history_id,name,project_name,project_path,description,type,status,preview_url,zip_url,preferred_host_adapter,last_activity_at,inactivity_warned_at,created_at,updated_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
            ON DUPLICATE KEY UPDATE
             project_id=VALUES(project_id), user_id=VALUES(user_id), chat_history_id=VALUES(chat_history_id),
             name=VALUES(name), project_name=VALUES(project_name), project_path=VALUES(project_path),
             description=VALUES(description), type=VALUES(type), status=VALUES(status),
-            preview_url=VALUES(preview_url), zip_url=VALUES(zip_url), updated_at=VALUES(updated_at)`,
+            preview_url=VALUES(preview_url), zip_url=VALUES(zip_url),
+            preferred_host_adapter=VALUES(preferred_host_adapter), last_activity_at=VALUES(last_activity_at),
+            inactivity_warned_at=VALUES(inactivity_warned_at), updated_at=VALUES(updated_at)`,
           [
             project.id,
             project.project_id,
@@ -326,6 +405,9 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
             project.status,
             project.previewUrl || '',
             project.zipUrl || '',
+            project.preferredHostAdapter || null,
+            project.lastActivityAt ? isoToMysqlDate(project.lastActivityAt) : null,
+            project.inactivityWarnedAt ? isoToMysqlDate(project.inactivityWarnedAt) : null,
             isoToMysqlDate(project.createdAt || project.created_at),
             isoToMysqlDate(project.updatedAt || project.updated_at)
           ]
@@ -459,10 +541,11 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
     command: string | null;
     attempts: number;
     resume_at: string | null;
+    finished_at: string | null;
   }) | null> {
     if (!dbPool) return null;
     const [rows] = await dbPool.query<RowDataPacket[]>(
-      `SELECT project_id,user_id,bs_session_id,status,command,attempts,resume_at
+      `SELECT project_id,user_id,bs_session_id,status,command,attempts,resume_at,finished_at
        FROM host_jobs
        WHERE project_id = ?
        LIMIT 1`,

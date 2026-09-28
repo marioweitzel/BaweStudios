@@ -1,3 +1,11 @@
+function inactivityWarningLabel(p){
+  if(!p.inactivity_warned_at)return '';
+  var warnedMs=new Date(p.inactivity_warned_at).getTime();
+  var daysLeft=7-Math.floor((Date.now()-warnedMs)/86400000);
+  if(daysLeft<0)daysLeft=0;
+  return 'Sin actividad hace 7 días o más — se elimina por seguridad en '+daysLeft+(daysLeft===1?' día':' días')+' si no volvés a usarlo.';
+}
+
 function renderProjects(projects){
   var grid=document.getElementById('p-grid');
   var empty=document.getElementById('p-empty');
@@ -15,6 +23,7 @@ function renderProjects(projects){
       +'<span class="p-status '+statusClass(p.status,p)+'">'+stateLabel(p)+'</span>'
       +'<div class="p-name-row"><span class="p-name">'+esc(p.name)+'</span><button class="p-edit-ico" onclick="editProject(\''+cid+'\',\''+cn+'\')" aria-label="Editar nombre del proyecto" title="Editar nombre"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div>'
       +(p.description||fallbackDesc?'<div class="p-desc">'+(p.description?esc(p.description):fallbackDesc)+'</div>':'')
+      +(inactivityWarningLabel(p)?'<div class="p-inactivity-warning">'+inactivityWarningLabel(p)+'</div>':'')
       +'<div class="p-actions">'
       +'<button class="ba ba-p" onclick="openChatProj(\''+cid+'\',\''+cn+'\')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat</button>'
       +'<button class="ba ba-g" onclick="downloadProject(\''+cid+'\',\''+cn+'\')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>ZIP</button>'

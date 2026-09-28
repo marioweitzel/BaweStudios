@@ -59,6 +59,8 @@ services:
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:10040}
       BAWE_TOPOLOGY: ${BAWE_TOPOLOGY:-local}
       BAWE_PUBLIC_BASE_URL: ${BAWE_PUBLIC_BASE_URL:-}
+      DOCKER_TEARDOWN_URL: ${DOCKER_TEARDOWN_URL:-http://host.docker.internal:5011/teardown}
+      BAWE_HOST_PROJECTS_ROOT: ${BAWE_HOST_PROJECTS_ROOT}
     secrets:
       - source: db_password_bs
         target: db_password

@@ -9,6 +9,13 @@ import { isFinalContract, isPartialContract } from '../utils/contracts';
 // resuelta a ISO/UTC por el bridge) es siempre la fuente de verdad.
 const SESSION_WINDOW_FALLBACK_HOURS = Number(process.env.HOST_SESSION_WINDOW_FALLBACK_HOURS || 5);
 
+// Cada cuanto el supervisor revisa si hay proyectos "building" sin ningun job
+// corriendo en memoria (ver startStuckJobSupervisor). Antes de esto, la unica
+// red de recuperacion era un restart completo del backend -- si un job moria
+// por algo que agotaba los reintentos de conexion, quedaba colgado hasta que
+// alguien reiniciara a mano (nos paso dos veces la noche del 25/9/2026).
+const STUCK_JOB_CHECK_INTERVAL_MS = Number(process.env.HOST_STUCK_JOB_CHECK_INTERVAL_MS || 5 * 60 * 1000);
+
 type HostTurnEvent = {
   projectId?: string | null;
   userId?: string | null;
@@ -39,6 +46,7 @@ type DevelopmentJobDeps = {
   hostRuntime: HostRuntime;
   readDb: () => { projects: StoredProject[] };
   recordHostTurnEvent: (event: HostTurnEvent) => void;
+  updateProject: (projectId: string, userId: string, patch: Partial<StoredProject>) => unknown;
   upsertHostJob: (args: UpsertHostJobArgs) => Promise<any>;
 };
 
@@ -545,66 +553,107 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
     deps.recordHostTurnEvent({ projectId, userId, sessionId: null, eventType: 'background.job.max_attempts', payload: { maxAttempts } });
   }
 
-  function recoverDevelopmentJobsOnStartup() {
-    const projects = deps.readDb().projects.filter(project => {
-      const state = deps.getProjectState(project);
-      return project.status === 'building' || state === 'PROJECT_BUILDING';
-    });
-    for (const project of projects) {
+  // Punto unico de decision: dado un proyecto que parece "building", decide
+  // si hay que reintentarlo, esperar un rate-limit ya conocido, o dejarlo
+  // quieto porque en realidad ya llego a un final real. Usado tanto por la
+  // recuperacion al bootear como por el supervisor periodico -- misma logica,
+  // dos disparadores distintos.
+  async function attemptJobRecovery(project: StoredProject, reason: string) {
+    const existingJob = await deps.getHostJob(project.id).catch(() => null);
+
+    if (existingJob?.finished_at) {
+      // El job ya termino de verdad (entregado o fallado con contrato
+      // estable) pero nadie actualizo project.status -- pasa hoy en el
+      // camino de fallo real (ver processDevelopmentResponse/
+      // finalizeProjectDelivery, ninguno de los dos toca project.status en
+      // el caso de error). Sin este chequeo, cualquier supervisor reintenta
+      // un proyecto muerto para siempre. Reflejar la realidad y no tocar nada mas.
       deps.recordHostTurnEvent({
         projectId: project.id,
         userId: project.userId,
         sessionId: null,
-        eventType: 'background.job.recovered_on_startup',
-        payload: { projectName: project.project_name, projectPath: project.project_path }
+        eventType: 'background.job.recovery_skipped_terminal',
+        payload: { reason, hostJobStatus: existingJob.status }
       });
-
-      deps.getHostJob(project.id)
-        .then(existingJob => {
-          const resumeAtMs = existingJob?.resume_at ? new Date(existingJob.resume_at).getTime() : null;
-          const stillLimited = existingJob?.status === 'rate_limited' && resumeAtMs && resumeAtMs > Date.now();
-
-          if (stillLimited && resumeAtMs) {
-            const waitMs = resumeAtMs - Date.now();
-            deps.recordHostTurnEvent({
-              projectId: project.id,
-              userId: project.userId,
-              sessionId: null,
-              eventType: 'background.job.rate_limit_recovery_deferred',
-              payload: { resumeAt: existingJob.resume_at, waitMs }
-            });
-            // Persistido en host_jobs.resume_at, no solo en memoria: si el
-            // backend se reinicia de nuevo antes de que se cumpla, el proximo
-            // boot vuelve a leer esta misma fila y recalcula cuanto falta en
-            // vez de reintentar de una.
-            setTimeout(() => startDevelopmentJob(project.id, project.userId, 'rate_limit_resume'), waitMs);
-            return;
-          }
-
-          deps.upsertHostJob({
-            projectId: project.id,
-            userId: project.userId,
-            status: 'running',
-            error: null,
-            attempts: 0
-          }).catch(() => {});
-          startDevelopmentJob(project.id, project.userId, 'startup_recovery');
-        })
-        .catch(() => {
-          deps.upsertHostJob({
-            projectId: project.id,
-            userId: project.userId,
-            status: 'running',
-            error: null,
-            attempts: 0
-          }).catch(() => {});
-          startDevelopmentJob(project.id, project.userId, 'startup_recovery');
-        });
+      if (project.status === 'building') {
+        deps.updateProject(project.id, project.userId, { status: 'failed' });
+      }
+      return;
     }
+
+    const resumeAtMs = existingJob?.resume_at ? new Date(existingJob.resume_at).getTime() : null;
+    const stillLimited = existingJob?.status === 'rate_limited' && resumeAtMs && resumeAtMs > Date.now();
+
+    if (stillLimited && resumeAtMs) {
+      const waitMs = resumeAtMs - Date.now();
+      deps.recordHostTurnEvent({
+        projectId: project.id,
+        userId: project.userId,
+        sessionId: null,
+        eventType: 'background.job.rate_limit_recovery_deferred',
+        payload: { resumeAt: existingJob.resume_at, waitMs, reason }
+      });
+      // Persistido en host_jobs.resume_at, no solo en memoria: si el
+      // backend se reinicia de nuevo antes de que se cumpla, el proximo
+      // boot (o el propio supervisor) vuelve a leer esta misma fila y
+      // recalcula cuanto falta en vez de reintentar de una.
+      setTimeout(() => startDevelopmentJob(project.id, project.userId, 'rate_limit_resume'), waitMs);
+      return;
+    }
+
+    deps.recordHostTurnEvent({
+      projectId: project.id,
+      userId: project.userId,
+      sessionId: null,
+      eventType: 'background.job.recovery_triggered',
+      payload: { reason, projectName: project.project_name, projectPath: project.project_path }
+    });
+    deps.upsertHostJob({
+      projectId: project.id,
+      userId: project.userId,
+      status: 'running',
+      error: null,
+      attempts: 0
+    }).catch(() => {});
+    startDevelopmentJob(project.id, project.userId, reason);
+  }
+
+  function projectLooksLikeBuilding(project: StoredProject) {
+    const state = deps.getProjectState(project);
+    return project.status === 'building' || state === 'PROJECT_BUILDING';
+  }
+
+  function recoverDevelopmentJobsOnStartup() {
+    const projects = deps.readDb().projects.filter(projectLooksLikeBuilding);
+    for (const project of projects) {
+      attemptJobRecovery(project, 'startup_recovery').catch(() => {});
+    }
+  }
+
+  // Red de recuperacion continua: sin esto, un job que muere por algo que no
+  // sea un rate-limit reconocido (ej. un error no manejado, una conexion que
+  // agoto sus reintentos) queda colgado hasta el proximo restart manual del
+  // backend -- exactamente lo que paso dos veces la noche del 25/9/2026 con
+  // un proyecto real. `developmentJobs` (el Map en memoria) solo tiene una
+  // entrada mientras la promesa de runDevelopmentJob sigue pendiente
+  // (incluso durmiendo por un rate-limit largo) -- si un proyecto figura
+  // "building" y NO esta en el Map, su ultimo intento ya termino sin haber
+  // actualizado el estado real, sea porque exploto o porque el proceso se
+  // reinicio a mitad de camino.
+  function startStuckJobSupervisor(intervalMs: number = STUCK_JOB_CHECK_INTERVAL_MS) {
+    return setInterval(() => {
+      const stuckProjects = deps.readDb().projects.filter(project =>
+        projectLooksLikeBuilding(project) && !developmentJobs.has(project.id)
+      );
+      for (const project of stuckProjects) {
+        attemptJobRecovery(project, 'supervisor_recovery').catch(() => {});
+      }
+    }, intervalMs);
   }
 
   return {
     recoverDevelopmentJobsOnStartup,
-    startDevelopmentJob
+    startDevelopmentJob,
+    startStuckJobSupervisor
   };
 }

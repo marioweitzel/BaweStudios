@@ -109,6 +109,15 @@
     },
     getProjectChat: function(projectId) {
       return request('/projects/' + encodeURIComponent(projectId) + '/chat', { headers: authHeaders() });
+    },
+    getAvailableHosts: function() {
+      return request('/hosts/available', { headers: authHeaders() });
+    },
+    acceptScopeDisclaimer: function() {
+      return request('/auth/accept-disclaimer', { method: 'POST', headers: authHeaders() });
+    },
+    acceptSecurityNotice: function() {
+      return request('/auth/accept-security-notice', { method: 'POST', headers: authHeaders() });
     }
   };
 })(window);

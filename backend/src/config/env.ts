@@ -30,6 +30,17 @@ export const env = {
   jwtSecret,
   frontendOrigin: process.env.FRONTEND_ORIGIN || 'http://localhost:10040',
   projectsRoot: process.env.BAWE_PROJECTS_ROOT || path.join(__dirname, '..', '..', '..', 'root', 'bawestudios'),
+  // Ruta de root/bawestudios vista desde EL HOST (fuera de Docker), no desde
+  // adentro del contenedor del backend -- el backend no tiene ni el CLI de
+  // Docker ni el socket para bajar contenedores el mismo (ver
+  // projectDeletionService.ts), asi que le delega esa parte a
+  // docker-teardown-adapter.js, un proceso host-side (mismo molde que los
+  // bridges) al que solo le puede pasar rutas que existen de verdad en SU
+  // filesystem, no el de adentro del contenedor.
+  dockerTeardown: {
+    url: process.env.DOCKER_TEARDOWN_URL || 'http://host.docker.internal:5011/teardown',
+    hostProjectsRoot: process.env.BAWE_HOST_PROJECTS_ROOT || ''
+  },
   db: {
     host: process.env.DB_HOST || '127.0.0.1',
     port: Number(process.env.DB_PORT || 3306),
@@ -86,3 +97,10 @@ export const EXTENSION_QUEUE_READY_SIGNAL = '[[BAWE_CAMBIOS_EXTENSION_LISTA]]';
 // es distinto ("cambios" aca, "continuar" en el pipeline original).
 export const EDIT_PARTIAL_MARKER = '[[BAWE_CAMBIOS_EDICION_PARCIAL]]';
 export const EDIT_FINISHED_MARKER = '[[BAWE_CAMBIOS_EDICION_FINALIZADA]]';
+
+// Bloque fuera de banda que el motor emite despues de una pregunta con
+// opciones dinamicas (acordado con Motor 24/9/2026), para que el frontend
+// pueda ofrecerlas como clickeables ademas del texto libre de siempre. Nunca
+// se muestra al cliente tal cual -- se extrae y se descarta del texto humano.
+export const OPTIONS_BLOCK_START = '[[BAWE_OPCIONES]]';
+export const OPTIONS_BLOCK_END = '[[/BAWE_OPCIONES]]';
