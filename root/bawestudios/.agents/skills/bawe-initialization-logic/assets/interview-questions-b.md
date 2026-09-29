@@ -16,7 +16,7 @@ Estos campos son AUTOMÁTICOS — no preguntar, registrar directamente:
 | visual_theme     | MODEL_DECISION salvo requisito explicito de cliente/accesibilidad | default descriptivo |
 | jwt_expires      | 24h si A3=SaaS; null si A3=Landing/Blog               | deducción por tipo  |
 | rate_limiting    | true                                                  | default BaWe        |
-| environment      | local_docker + vps_deployment: pending_product_approval   | INVARIANTE          |
+| environment      | local_docker (fijo); `deployment_topology` se define en B_DEPLOY, ya no es default silencioso | INVARIANTE + B_DEPLOY |
 | db_name          | slug de A1                                            | AUTOMÁTICO          |
 | db_user          | root                                                  | INVARIANTE          |
 | db_password      | requerido; generation_phase=env-generator; generated_now=false | ENGINE_DEFAULT      |
@@ -56,18 +56,31 @@ Despues de recibir B1:
 3. Registrar variables requeridas e inferencias tecnicas con origen `ENGINE_INFERENCE`.
 4. Actualizar:
    - `Ultima pregunta completada`: `B1`
-   - `Siguiente pregunta pendiente`: `B_EXTRA`
+   - `Siguiente pregunta pendiente`: `B_DEPLOY`
 
 No leer `log-preguntas.template.md` para persistir B1. El template se usa solo en el cierre de Seccion B.
 
 ---
 
+## PERSISTENCIA DESPUES DE B_DEPLOY
+
+Despues de recibir B_DEPLOY (y el follow-up de dominio si aplico):
+
+1. Actualizar `[PROJECT_ROOT]/log-preguntas.md`.
+2. Registrar `deployment_topology` y `deployment_domain` con origen `USER_EXPLICIT`.
+3. Actualizar:
+   - `Ultima pregunta completada`: `B_DEPLOY`
+   - `Siguiente pregunta pendiente`: `B_EXTRA`
+
+---
+
 ## PREGUNTAS REALES AL USUARIO
 
-Seccion B tiene dos entradas `USER_EXPLICIT`:
+Seccion B tiene tres entradas `USER_EXPLICIT`:
 
 ```text
 B1
+B_DEPLOY
 B_EXTRA
 ```
 
@@ -130,6 +143,40 @@ Registrar origen:
 B1.integrations = USER_EXPLICIT
 integrations.required_env_vars = ENGINE_INFERENCE
 ```
+
+### B_DEPLOY. Topologia de despliegue final ← OBLIGATORIA (no omitir)
+
+Antes de formular B_DEPLOY, revisar `log-preguntas.md` y B1 por si el cliente ya
+mencionó explícitamente un hosting, VPS o dominio propio. Si ya lo mencionó, no
+volver a preguntar como si fuera nueva información: confirmar lo ya dicho y
+pasar directo al follow-up de dominio si corresponde.
+
+Si no hay nada mencionado, preguntar:
+
+> "Una vez terminado, ¿este proyecto va a correr en una sola PC o servidor sin dominio propio (por ejemplo, la PC del local o un servidor interno), o en un servidor con dominio propio (por ejemplo, un hosting o VPS con un dominio tipo tuempresa.com)?"
+
+Formato de entrega:
+
+`Sin dominio propio (una PC o servidor interno) | Con dominio propio (VPS/hosting con dominio)`
+
+Si elige "Con dominio propio", preguntar:
+
+> "¿Ya tenés el dominio definido, o lo dejamos como algo a completar más adelante?"
+
+Registrar:
+
+```text
+deployment_topology: single_host | domain_hosted
+deployment_domain: [dominio real] | pending_client_input (solo si domain_hosted)
+```
+
+Reglas:
+
+- No asumir Windows o Linux del lado del cliente a partir de esta respuesta —
+  esta pregunta no cambia el contenido técnico del compose en sí, solo si
+  hace falta Traefik y un dominio o no.
+- No mostrar `Traefik`, `docker-compose-vps.yml` ni otros nombres técnicos
+  internos al cliente; la pregunta se formula en lenguaje humano.
 
 ---
 

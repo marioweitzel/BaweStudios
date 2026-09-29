@@ -66,6 +66,27 @@ Ejemplos de adaptacion:
 - Si habla de taller, las opciones deben hablar de vehiculos, turnos, repuestos, autorizaciones, fotos o estado del trabajo.
 - Si habla de gestion interna, las opciones deben hablar de tareas, responsables, estados, permisos, historial o avisos.
 
+### Emitir bloque de opciones para el frontend
+
+Ademas de la pregunta en lenguaje natural con las opciones generadas, agregar
+inmediatamente despues, en su propia seccion, este bloque para que el
+frontend de BaweStudio pueda renderizarlas como clickeables:
+
+```text
+[[BAWE_OPCIONES]]
+multiple: true
+1. [opcion concreta]
+2. [opcion concreta]
+...
+Otra
+[[/BAWE_OPCIONES]]
+```
+
+- Las opciones numeradas son las mismas que ya se generaron para la pregunta, en el mismo orden — no generar un segundo set de opciones distinto.
+- `multiple: true` por default, salvo que la pregunta puntual indique lo contrario.
+- Este bloque nunca reemplaza la pregunta en lenguaje natural; va ademas, nunca en lugar de.
+- No traducir, parafrasear ni alterar `[[BAWE_OPCIONES]]` / `[[/BAWE_OPCIONES]]`.
+
 ---
 
 ## SECUENCIA DE REANUDACION SECCION A
@@ -419,8 +440,24 @@ Formato de entrega:
 > "¿Hay algún sitio web que te guste como referencia visual? (podés omitir)"
 
 ### A_PRIORITIES. Funciones prioritarias ← OBLIGATORIA (no omitir)
-> "De todo lo que imaginás para el producto, ¿cuáles son las 3 funciones que te parecen más importantes para empezar a construir bien?"
+
+Preguntar:
+
+> "De todo lo que imaginás para el producto, ¿cuáles son las 3 funciones que te parecen más importantes para empezar a construir bien? Elegí de la lista o decime las tuyas."
 > *(Estas 3 funciones ordenan la prioridad de construcción. No limitan el producto completo, que se deriva de toda la entrevista.)*
+
+Generar entre 4 y 6 opciones de funciones concretas segun el proyecto, usando A2, A3, A4 y respuestas previas.
+Aplicar la `REGLA GENERAL PARA OPCIONES DINAMICAS`.
+
+Reglas:
+
+- Las opciones deben ser funciones reales del producto, no categorias genericas.
+- El cliente puede elegir de la lista, combinarlas con las suyas, o ignorar la lista y responder libre.
+- No hace falta que elija exactamente 3 de la lista si prefiere describir las suyas.
+
+Formato de entrega:
+
+`[funcion concreta] | [funcion concreta] | ... | Otra`
 
 ---
 

@@ -107,7 +107,10 @@ Rules:
 - Windows local execution uses Docker Desktop and `docker-compose-local.yml`.
 - Ubuntu VPS delivery uses Docker Swarm with Traefik and
   `docker-compose-vps.yml`.
-- The local compose file is the required runtime validation target.
+- The local compose file is the required runtime validation target — except
+  when `docker-compose-preview.yml` exists for the project (BaweStudio is
+  `remote-hosted`), in which case that file replaces it as the validation
+  target; see `docker-compose-generator/SKILL.md` and `docker-validation-gate/SKILL.md`.
 - The VPS compose file is kept configured and current for the user, but the LLM
   does not deploy to a VPS unless explicitly asked.
 - Host runtime execution may support syntax checks, unit tests, package

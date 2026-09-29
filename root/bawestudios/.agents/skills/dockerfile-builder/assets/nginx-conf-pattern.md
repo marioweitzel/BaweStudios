@@ -4,6 +4,11 @@
 Template de nginx para servir el frontend estático como reverse proxy hacia el backend.
 El AD usa este documento para generar `frontend/nginx.conf` durante `dockerfile-builder`.
 
+Aplica igual a cualquier otro output servido como build web desde este motor —
+por ejemplo un `mobile/`, que en este motor siempre es un build web (export de
+Expo u otro), nunca una app nativa instalada fuera de una página web: generar
+su `nginx.conf` con el mismo patrón, nunca dejarlo llamar al backend directo.
+
 ## Template base (adaptar `BACKEND_SERVICE` al nombre real del servicio en docker-compose)
 
 ```nginx
@@ -71,6 +76,16 @@ http {
             proxy_cache_bypass $http_upgrade;
         }
 
+        # Repetir este bloque para CADA otro prefijo backend-facing que use
+        # el proyecto (ej. /uploads/, /media/) — no asumir que /api/ es el
+        # unico. Revisar api-schema.json y las rutas de archivos declaradas
+        # para identificarlos todos antes de dar el nginx.conf por completo.
+        # location /uploads/ {
+        #     set $backend_upstream [BACKEND_SERVICE_NAME]:[BACKEND_PORT];
+        #     proxy_pass http://$backend_upstream;
+        #     proxy_set_header Host $host;
+        # }
+
         # Static files — SPA fallback
         location / {
             try_files $uri $uri/ /index.html;
@@ -128,4 +143,15 @@ grep -n "resolver 127.0.0.11" frontend/nginx.conf   → debe aparecer
 
 # Verificar que el proxy está correctamente configurado:
 grep -n "proxy_pass" frontend/nginx.conf            → debe apuntar al nombre de servicio, no a IP hardcodeada
+
+# Verificar que TODOS los prefijos backend-facing del proyecto tienen su
+# propio bloque de proxy, no solo /api/ (comparar contra api-schema.json y
+# cualquier ruta de archivos/uploads declarada):
+grep -n "location /" frontend/nginx.conf
+
+# Verificar que el build no tiene una URL absoluta de backend horneada
+# (bundle, .env de build, args de Dockerfile como *_API_BASE_URL) apuntando
+# a un host distinto del propio origen — si aparece, el frontend/mobile está
+# hablando directo al backend en vez de usar el proxy:
+grep -rn "API_BASE_URL\|API_URL" frontend/ mobile/ 2>/dev/null
 ```

@@ -28,6 +28,10 @@ Create `project-context.md`, the canonical processed project context used by PRD
 - Requested build priorities derived from A_PRIORITIES.
 - Business rules, acceptance signals and non-blocking uncertainties.
 - Integrations, explicit technical preferences and engine defaults as declarative context.
+- `preview_subdomain_seq` copied verbatim from `log-preguntas.md` into
+  `project.preview_subdomain_seq` — this value was assigned once by
+  `bawe-initialization-logic` from the user-level `id_num.md` counter; never
+  recompute or reassign it here.
 - Visual DNA, brand constraints and reference signals.
 - Lightweight assumptions, open ambiguities and product constraints.
 - Traceability back to `log-preguntas.md`.
@@ -45,6 +49,7 @@ project:
   slug: ""
   pipeline: ""
   type: ""
+  preview_subdomain_seq: ""
 section_a:
   status: "complete"
 section_b:

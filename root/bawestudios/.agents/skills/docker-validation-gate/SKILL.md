@@ -39,9 +39,11 @@ Skip only for explicitly non-executable/static deliverables, and record why.
 6. Check VPS Swarm `deploy` blocks and Traefik labels/network when web runtime
    is exposed.
 7. Run `docker compose -f docker-compose-local.yml config` when execution is
-   allowed.
+   allowed — or `docker-compose-preview.yml` instead when that file exists
+   for this project (see rule below).
 8. Run local compose up/health when runtime validation is required and Docker is
-   available.
+   available — using `docker-compose-preview.yml` instead of
+   `docker-compose-local.yml` when the former exists for this project.
 9. Summarize runtime blockers and config warnings.
 
 ## Minimal Output
@@ -55,13 +57,22 @@ Skip only for explicitly non-executable/static deliverables, and record why.
 - Compose file is invalid.
 - Required service is missing.
 - Required env var is undeclared.
-- Secret is hardcoded in config.
+- Secret is hardcoded in config — this includes a `${VAR:-value}` shell-default
+  fallback for a secret-bearing variable (JWT_SECRET, DB_PASSWORD, session
+  secret, seeded/initial admin password), not only a literal with no `${}`
+  indirection at all. If `.env` is absent, that default becomes the real
+  secret at runtime, so secret-bearing variables must have no default.
 - VPS web service lacks Traefik/Swarm deployment configuration.
 - Docker config command fails when it is required and allowed.
 
 ## Rules
 
 - Executable BaWe products require Docker local validation before client review.
+- When `docker-compose-preview.yml` exists for a project (BaweStudio is
+  `remote-hosted`, see `runtime-environment-contract.md`), it replaces
+  `docker-compose-local.yml` as the validation target — do not bring up both;
+  it is the same stack, just exposed differently (no host ports, Traefik
+  routes to it instead).
 - Do not deploy to a VPS unless explicitly asked.
 - Do not start containers unless the current task allows runtime validation.
 - Do not treat host Node/MySQL execution as equivalent Docker runtime evidence.

@@ -60,7 +60,7 @@ Si agrega información:
 | testing         | Jest                    |
 | i18n            | ES / EN / PT            |
 | visual_theme     | MODEL_DECISION (no imponer light/dark universal) |
-| vps             | pending_product_approval    |
+| vps             | definido en B_DEPLOY (`deployment_topology`), ya no es default silencioso |
 
 ### Variables y secretos requeridos
 

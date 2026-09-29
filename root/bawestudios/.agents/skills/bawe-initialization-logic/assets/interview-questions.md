@@ -1,19 +1,19 @@
-# BAWE INTERVIEW — Router de Ejecución
+# BAWE INTERVIEW ï¿½ Router de Ejecuciï¿½n
 # bawe-initialization-logic | Motor v4.7
 # LEER ESTE ARCHIVO PRIMERO solo cuando no haya una ruta de reanudacion emitida por project-context-detector.
 # Seguir el orden exacto en bootstrap nuevo. En reanudacion, seguir "REANUDACION CORTA".
 
 ---
 
-## ORDEN DE EJECUCIÓN
+## ORDEN DE EJECUCIï¿½N
 
-| Paso | Archivo a leer | Qué hace el agente | Output |
+| Paso | Archivo a leer | Quï¿½ hace el agente | Output |
 |------|----------------|--------------------|--------|
 | 1 | `interview-questions-a.md` | 6 preguntas core del cliente | retener en memoria |
-| 2 | `interview-questions-a-defaults.md` | Asunciones por tipo — confirmar o ajustar | Sección A cerrada en `log-preguntas.md` |
-| 3 | `interview-questions-b.md` | B1 integraciones + inferencias tecnicas declarativas | retener en memoria |
-| 4 | `interview-questions-b-defaults.md` | B_EXTRA + defaults BaWe — confirmar o ajustar | Sección B completa + Métricas en `log-preguntas.md` |
-| 5 | — | invocar `project-context-generator` | `project-context.md` |
+| 2 | `interview-questions-a-defaults.md` | Asunciones por tipo ï¿½ confirmar o ajustar | Secciï¿½n A cerrada en `log-preguntas.md` |
+| 3 | `interview-questions-b.md` | B1 integraciones + B_DEPLOY topologia de despliegue + inferencias tecnicas declarativas | retener en memoria |
+| 4 | `interview-questions-b-defaults.md` | B_EXTRA + defaults BaWe ï¿½ confirmar o ajustar | Secciï¿½n B completa + Mï¿½tricas en `log-preguntas.md` |
+| 5 | ï¿½ | invocar `project-context-generator` | `project-context.md` |
 
 ---
 
@@ -37,7 +37,7 @@ Mapa de pregunta pendiente a asset:
 |---|---|
 | `A1` a `A_PRIORITIES` | `interview-questions-a.md` |
 | `A_DEFAULTS` o `Cierre Seccion A` | `interview-questions-a-defaults.md` |
-| `B1` | `interview-questions-b.md` |
+| `B1` o `B_DEPLOY` | `interview-questions-b.md` |
 | `B_EXTRA` o `Cierre Seccion B` | `interview-questions-b-defaults.md` |
 | `PROJECT_CONTEXT_GENERATOR` | `[WORKSPACE_ROOT]/.agents/skills/project-context-generator/SKILL.md` |
 
@@ -56,12 +56,12 @@ Ejemplo:
 bawestudios/
 +-- .agents/
 +-- [workspace_user_id_1]/
-¦   +-- [project_name_1]/
-¦   +-- [project_name_2]/
-¦   +-- [project_name_N]/
+ï¿½   +-- [project_name_1]/
+ï¿½   +-- [project_name_2]/
+ï¿½   +-- [project_name_N]/
 +-- [workspace_user_id_2]/
-¦   +-- [project_name_1]/
-¦   +-- [project_name_N]/
+ï¿½   +-- [project_name_1]/
+ï¿½   +-- [project_name_N]/
 +-- [workspace_user_id_N]/
     +-- [project_name_N]/
 
@@ -85,8 +85,8 @@ No escribir ningun archivo antes de A1 y de crear/verificar [PROJECT_ROOT].
 
 ## REGLAS DE SECUENCIA
 
-- **Leer completo antes de actuar**: cada archivo se lee COMPLETO antes de hacer la primera pregunta de esa sección.
+- **Leer completo antes de actuar**: cada archivo se lee COMPLETO antes de hacer la primera pregunta de esa secciï¿½n.
 - **Log al cerrar**: escribir el log AL TERMINAR cada paso, antes de leer el siguiente archivo. La unica excepcion es el bootstrap inicial: antes de A1 no existe [PROJECT_ROOT], por lo tanto no se escribe nada.
-- **Retorno**: en bootstrap lineal, al terminar cada paso volver aquí y avanzar al siguiente. En `REANUDACION CORTA`, no volver aquí salvo que el asset actual lo pida.
+- **Retorno**: en bootstrap lineal, al terminar cada paso volver aquï¿½ y avanzar al siguiente. En `REANUDACION CORTA`, no volver aquï¿½ salvo que el asset actual lo pida.
 - **Sin salteos**: si falta project-context.md y existe `log-preguntas.md`, aplicar `REANUDACION CORTA` solo si el puntero es una pregunta de entrevista. Si el puntero es `PROJECT_CONTEXT_GENERATOR`, pasar a `project-context-generator/SKILL.md`. Si no existe `log-preguntas.md`, ir al Paso 1.
 - **Salida**: Paso 5 entrega control a `project-context-generator`. `bawe-initialization-logic` no genera `project-context.md` ni `prd.md`.

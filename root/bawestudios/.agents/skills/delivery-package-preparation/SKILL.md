@@ -116,13 +116,18 @@ packages/
 public/
 assets/
 logo or brand assets
-docker-compose*.yml
 .env.example
 .dockerignore
 .gitignore
 package manifests
 api-schema.json when API exists
 ```
+
+For the compose file(s), do not include both `docker-compose*.yml` files by
+default. Read `deployment_topology` from `project-context.md`: include only
+`docker-compose-local.yml` when `single_host`, or only `docker-compose-vps.yml`
+when `domain_hosted`. If `deployment_topology` is missing (older project, asked
+before this question existed), include both rather than guessing wrong.
 
 For source folders, copy source and required config, not dependency caches:
 
@@ -224,25 +229,25 @@ After creating the zip, verify:
 
 ## Preview URL
 
-Determine the preview host from
-`[WORKSPACE_ROOT]/.bawe-runtime/runtime-context.json`, per
-`.agents/contracts/runtime-environment-contract.md`:
+Read `topology` from `[WORKSPACE_ROOT]/.bawe-runtime/runtime-context.json`,
+per `.agents/contracts/runtime-environment-contract.md`. This is a different
+field from `deployment_topology`/`B_DEPLOY` — this one is about whether
+*this BaweStudio instance* is local or remote-hosted, not about where the
+client will deploy their own finished product.
 
-- If the file is absent, or `topology` is `"local"`: the preview host is
-  `localhost`.
-- If `topology` is `"remote-hosted"`: the preview host is `public_base_url`
-  from that file. Do not fall back to `localhost` in this case — a
-  `remote-hosted` preview pointing at `localhost` is broken for anyone who is
-  not on the machine running BaweStudio.
-
-Take the frontend port from `task-log.md` (or from the project's generated
-`docker-compose-local.yml` when `task-log.md` does not record it) — the same
-port a human would open to see the running product.
-
-Build `preview.url` as `<host>:<port>` (for example `http://localhost:5173`
-or `http://164.68.109.5:5173`), unless `public_base_url` already contains an
-explicit port, in which case use `public_base_url` as-is without appending
-another one.
+- If the file is absent, or `topology` is `"local"`: `preview.url` is
+  `http://localhost:<port>`, where `<port>` is the frontend port from
+  `task-log.md` (or from the project's generated `docker-compose-local.yml`
+  when `task-log.md` does not record it) — the same port a human would open
+  to see the running product.
+- If `topology` is `"remote-hosted"`: `preview.url` is
+  `https://<id>.bawestudio.com.ar`, where `<id>` is the same 13-digit id
+  `docker-compose-generator` used to build `docker-compose-preview.yml` (last
+  10 digits of `workspace_user_id` + `project.preview_subdomain_seq` from
+  `project-context.md`, concatenated, no separator). Do not build this as
+  `<public_base_url>:<port>` — the preview is reached through Traefik on a
+  per-project subdomain, not through a shared host/port pair, and no port
+  appears in the URL at all.
 
 Set `preview.type` to the `topology` value actually used (`"local"` or
 `"remote-hosted"`) — do not hardcode `"local"` regardless of topology.

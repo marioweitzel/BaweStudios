@@ -86,7 +86,11 @@ keys, zip passwords) stay out of the documentation.
 - requirements;
 - environment setup using `.env.example`;
 - how to run locally with Docker when Docker artifacts exist;
-- expected preview URL when known;
+- the local URL to open once the app is running (e.g. `http://localhost:<port>`,
+  using the port declared in the delivered `docker-compose-local.yml`/
+  `.env.example`) — never BaweStudio's own internal preview link or any
+  infrastructure address (IP, VPS hostname, internal review subdomain); the
+  client only ever needs the address for their own local run;
 - how to stop/restart the app.
 
 `03_GUIA_TECNICA.md` must include:

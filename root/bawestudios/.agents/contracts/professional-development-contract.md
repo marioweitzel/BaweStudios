@@ -53,6 +53,14 @@ ALWAYS:
 - Use `docker-compose-local.yml` for runtime validation on Windows Docker
   Desktop. Keep `docker-compose-vps.yml` configured for Ubuntu Docker Swarm
   with Traefik, but do not deploy to the VPS unless the user asks.
+- Default to OpenStreetMap (Leaflet or MapLibre GL plus a free tile provider)
+  for map/location features, unless product authority explicitly names Google
+  Maps or another specific provider. Do not introduce a paid mapping API by
+  default.
+- Every import path must match the real file name exactly, including case.
+  Do not rely on the development OS to resolve a mismatched-case import — a
+  case-insensitive filesystem (Windows/macOS) hides this bug; it only breaks
+  inside a Linux container or on a Linux host, potentially after delivery.
 - Treat hardcoded operational data, mock persistence or hidden fallback stores
   as blockers.
 - Do not hardcode product/domain data as a temporary shortcut for later DB
