@@ -26,8 +26,20 @@ export function isFinalContract(text: string | null | undefined) {
   return normalizeContractText(String(text || '')).endsWith(FINAL_CONTRACT_TEXT);
 }
 
+// Una respuesta corta cuya ULTIMA linea es exactamente el texto de comando
+// invalido tambien cuenta: el modelo a veces antepone una frase explicativa
+// (que puede nombrar reglas internas). Sin esto esa frase llegaria al cliente
+// como pregunta del asistente. El tope de largo evita descartar respuestas
+// largas con contenido real que casualmente terminen igual.
+const INVALID_COMMAND_MAX_CHARS = 300;
+
 export function isInvalidCommandResponse(text: string | null | undefined) {
-  return normalizeContractText(String(text || '')).toLocaleLowerCase('es') === INVALID_COMMAND_TEXT.toLocaleLowerCase('es');
+  const invalid = INVALID_COMMAND_TEXT.toLocaleLowerCase('es');
+  const raw = String(text || '').trim();
+  if (normalizeContractText(raw).toLocaleLowerCase('es') === invalid) return true;
+  if (raw.length > INVALID_COMMAND_MAX_CHARS) return false;
+  const lastLine = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).pop() || '';
+  return normalizeContractText(lastLine).toLocaleLowerCase('es') === invalid;
 }
 
 function stripCodeFence(text: string) {

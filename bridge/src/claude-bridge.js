@@ -9,7 +9,13 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 const { detectRateLimit } = require('./rateLimitDetect');
-const { requireAuth } = require('./bridge-auth');
+const { requireAuth, readEnvVar } = require('./bridge-auth');
+
+// Modelo fijo para las invocaciones del CLI. Sin esto, el CLI usa el alias de
+// su settings.json ("sonnet"), que cada version del CLI traduce a un modelo
+// distinto: dos maquinas con versiones distintas responden con modelos
+// distintos aunque la configuracion sea igual. Vacio = no pasa --model.
+const CLAUDE_MODEL = readEnvVar('CLAUDE_MODEL');
 
 const PORT = Number(process.env.CLAUDE_BRIDGE_PORT || 5001);
 // Variante Linux: sin instalacion fija, se autoubica igual que BRIDGE_LOG_PATH
@@ -143,6 +149,9 @@ function buildClaudeArgs(message, claudeSessionId) {
   // flow.") -- esto la hace cumplir tecnicamente en vez de depender de que
   // el modelo la respete solo.
   const args = ['-p', message, '--output-format', 'json', '--dangerously-skip-permissions', '--disallowed-tools', 'Agent'];
+  if (CLAUDE_MODEL) {
+    args.push('--model', CLAUDE_MODEL);
+  }
   if (claudeSessionId) {
     args.push('--resume', claudeSessionId);
   }

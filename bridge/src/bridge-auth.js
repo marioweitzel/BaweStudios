@@ -14,17 +14,19 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-function readSecretFromEnvFile() {
+// Lee una variable de process.env o, si falta, del .env de la raiz del repo.
+function readEnvVar(name) {
+  if (process.env[name]) return String(process.env[name]).trim();
   try {
     const raw = fs.readFileSync(path.join(__dirname, '..', '..', '.env'), 'utf8');
-    const match = raw.match(/^\s*BRIDGE_SHARED_SECRET\s*=\s*(.*)$/m);
+    const match = raw.match(new RegExp('^\\s*' + name + '\\s*=\\s*(.*)$', 'm'));
     return match ? match[1].trim().replace(/^["']|["']$/g, '') : '';
   } catch {
     return '';
   }
 }
 
-const SECRET = (process.env.BRIDGE_SHARED_SECRET || readSecretFromEnvFile()).trim();
+const SECRET = readEnvVar('BRIDGE_SHARED_SECRET');
 
 if (!SECRET) {
   console.error('[bridge-auth] BRIDGE_SHARED_SECRET no esta definido: se rechazaran con 401 todos los pedidos salvo GET /health.');
@@ -48,4 +50,4 @@ function requireAuth(req, res) {
   return false;
 }
 
-module.exports = { requireAuth };
+module.exports = { requireAuth, readEnvVar };

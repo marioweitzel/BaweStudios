@@ -399,7 +399,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
       minMtimeMs: pendingProjectNameSentAtMs
     });
     if (!committed) {
-      emitAgentError('No pude confirmar la creacion del proyecto en el motor. Intenta nuevamente en unos segundos.');
+      emitAgentError('Estamos atravesando una falla en el sistema. Intenta nuevamente en unos segundos.');
       return null;
     }
     const projectName = committed.projectName;
