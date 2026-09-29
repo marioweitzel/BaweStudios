@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 const { detectRateLimit } = require('./rateLimitDetect');
+const { requireAuth } = require('./bridge-auth');
 
 const PORT = Number(process.env.CODEX_BRIDGE_PORT || 5000);
 // Variante Linux: se autoubica igual que BRIDGE_LOG_PATH unas lineas mas
@@ -404,6 +405,7 @@ function runCodex({ sessionId, message, cwd, command, args, timeoutMs, rememberS
 }
 
 const server = http.createServer(async (req, res) => {
+  if (!requireAuth(req, res)) return;
   try {
     if (req.method === 'GET' && req.url === '/health') {
       sendJson(res, 200, {

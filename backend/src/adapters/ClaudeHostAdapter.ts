@@ -8,7 +8,7 @@ import { IHostAdapter } from './IHostAdapter';
 import * as path from 'path';
 import * as fs from 'fs';
 import { extractMarkedResponse, hasEditQueueReadySignal, hasExtensionQueueReadySignal } from '../utils/contracts';
-import { GENERIC_HOST_ERROR_MESSAGE } from '../config/env';
+import { GENERIC_HOST_ERROR_MESSAGE, bridgeHeaders } from '../config/env';
 
 const LOG_DIR = path.join(__dirname, '..', '..', '..', 'logs');
 const SESSION_LOG = path.join(LOG_DIR, 'claude-session.log');
@@ -148,7 +148,7 @@ export class ClaudeHostAdapter implements IHostAdapter {
       const stopUrl = this.getStopUrl();
       const res = await fetch(stopUrl, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: bridgeHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({ sessionId })
       });
       const bodyText = await res.text();
@@ -183,7 +183,7 @@ export class ClaudeHostAdapter implements IHostAdapter {
 
       const res = await fetch(this.config.bridgeUrl, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: bridgeHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           sessionId,
           message: prompt,

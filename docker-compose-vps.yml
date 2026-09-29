@@ -19,8 +19,6 @@ services:
         target: db_password
       - source: db_root_password_bs
         target: db_root_password
-    ports:
-      - "${DB_PORT}:3306"
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
@@ -35,8 +33,6 @@ services:
 
   redis:
     image: redis:7
-    ports:
-      - "${REDIS_PORT}:6379"
     deploy:
       replicas: 1
       restart_policy:
@@ -44,8 +40,6 @@ services:
 
   backend:
     image: bawestudioslinux-backend:latest
-    ports:
-      - "${BACKEND_PORT}:3000"
     environment:
       DB_HOST: db
       DB_PORT: 3306
@@ -60,6 +54,7 @@ services:
       BAWE_TOPOLOGY: ${BAWE_TOPOLOGY:-local}
       BAWE_PUBLIC_BASE_URL: ${BAWE_PUBLIC_BASE_URL:-}
       DOCKER_TEARDOWN_URL: ${DOCKER_TEARDOWN_URL:-http://host.docker.internal:5011/teardown}
+      BRIDGE_SHARED_SECRET: ${BRIDGE_SHARED_SECRET}
       BAWE_HOST_PROJECTS_ROOT: ${BAWE_HOST_PROJECTS_ROOT}
     secrets:
       - source: db_password_bs
@@ -76,8 +71,6 @@ services:
 
   frontend:
     image: bawestudioslinux-frontend:latest
-    ports:
-      - "${FRONTEND_PORT}:80"
     networks:
       - default
       - bawenet

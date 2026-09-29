@@ -15,6 +15,7 @@ const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
+const { requireAuth } = require('./bridge-auth');
 
 const execFileAsync = promisify(execFile);
 
@@ -87,6 +88,7 @@ function readJsonBody(req) {
 }
 
 const server = http.createServer(async (req, res) => {
+  if (!requireAuth(req, res)) return;
   if (req.method === 'GET' && req.url === '/health') {
     sendJson(res, 200, { status: 'ok', service: 'docker-teardown-adapter' });
     return;

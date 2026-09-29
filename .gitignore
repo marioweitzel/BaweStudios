@@ -5,3 +5,7 @@ logs/
 *.log
 .DS_Store
 Thumbs.db
+
+# Proyectos de usuarios y su contador de preview: son datos, no codigo.
+root/bawestudios/user_*/
+root/bawestudios/*/id_num.md

@@ -1,13 +1,27 @@
 [Unit]
 Description=BaweStudio - docker-teardown-adapter (puerto 5011)
-After=network.target
+After=network.target docker.service
+
+# Corre con un usuario de sistema propio (bawe-teardown), NO con ubuntu:
+# - Es el unico servicio host-side que necesita hablar con Docker (grupo docker).
+# - No tiene shell, ni home, ni sudo.
+# - El secreto compartido viene de /etc/bawestudio/teardown.env (root:bawe-teardown, 0640),
+#   no del .env del repo (que es 0600 de ubuntu).
+# Pasos de preparacion (usuario, ACL, archivo de secreto): docs/Despliegue en la VPS.md
 
 [Service]
 Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/BaweStudiosLinux
+User=bawe-teardown
+Group=bawe-teardown
+SupplementaryGroups=docker
+WorkingDirectory=/home/ubuntu/BaweStudiosLinux/bridge
 Environment=DOCKER_TEARDOWN_PORT=5011
 Environment=DOCKER_TEARDOWN_PROJECTS_ROOT=/home/ubuntu/BaweStudiosLinux/root/bawestudios
+Environment=HOME=/var/lib/bawe-teardown
+EnvironmentFile=/etc/bawestudio/teardown.env
+StateDirectory=bawe-teardown
+NoNewPrivileges=true
+PrivateTmp=true
 ExecStart=/usr/bin/node /home/ubuntu/BaweStudiosLinux/bridge/src/docker-teardown-adapter.js
 Restart=on-failure
 RestartSec=3

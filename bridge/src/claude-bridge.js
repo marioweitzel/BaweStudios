@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 const { detectRateLimit } = require('./rateLimitDetect');
+const { requireAuth } = require('./bridge-auth');
 
 const PORT = Number(process.env.CLAUDE_BRIDGE_PORT || 5001);
 // Variante Linux: sin instalacion fija, se autoubica igual que BRIDGE_LOG_PATH
@@ -380,6 +381,7 @@ function runClaude({ sessionId, message, cwd, command, timeoutMs, rememberSessio
 }
 
 const server = http.createServer(async (req, res) => {
+  if (!requireAuth(req, res)) return;
   try {
     if (req.method === 'GET' && req.url === '/health') {
       sendJson(res, 200, {

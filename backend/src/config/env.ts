@@ -51,6 +51,14 @@ export const env = {
   hostBackgroundMaxAttempts: Number(process.env.HOST_BACKGROUND_MAX_ATTEMPTS || process.env.CODEX_BACKGROUND_MAX_ATTEMPTS || 80)
 };
 
+// Secreto compartido con los bridges y el adaptador de teardown (procesos
+// host-side que escuchan en 0.0.0.0). Cada uno rechaza con 401 todo pedido que
+// no traiga este valor en "Authorization: Bearer <secreto>" (excepto /health).
+export function bridgeHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const secret = process.env.BRIDGE_SHARED_SECRET || '';
+  return secret ? { ...extra, authorization: `Bearer ${secret}` } : { ...extra };
+}
+
 export const PARTIAL_CONTRACT_TEXT = 'Parcial completado. Espero "continuar" para proseguir.';
 export const FINAL_CONTRACT_TEXT = 'Finalizado.';
 export const INVALID_COMMAND_TEXT = 'Comando inv\u00e1lido';

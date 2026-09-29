@@ -7,7 +7,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASS}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     ports:
-      - "${DB_PORT}:3306"
+      - "127.0.0.1:${DB_PORT}:3306"
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
@@ -18,13 +18,13 @@ services:
   redis:
     image: redis:7
     ports:
-      - "${REDIS_PORT}:6379"
+      - "127.0.0.1:${REDIS_PORT}:6379"
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "${BACKEND_PORT}:3000"
+      - "127.0.0.1:${BACKEND_PORT}:3000"
     environment:
       DB_HOST: db
       DB_PORT: 3306
@@ -37,6 +37,7 @@ services:
       BAWE_PROJECTS_ROOT: /workspace/bawestudios
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:10040}
       BAWE_TOPOLOGY: ${BAWE_TOPOLOGY:-local}
+      BRIDGE_SHARED_SECRET: ${BRIDGE_SHARED_SECRET}
       BAWE_PUBLIC_BASE_URL: ${BAWE_PUBLIC_BASE_URL:-}
     volumes:
       - ./root/bawestudios:/workspace/bawestudios

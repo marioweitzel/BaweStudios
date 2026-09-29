@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 const { detectRateLimit } = require('./rateLimitDetect');
+const { requireAuth } = require('./bridge-auth');
 
 const PORT = Number(process.env.OPENCODE_BRIDGE_PORT || 5002);
 // Variante Linux: se autoubica igual que BRIDGE_LOG_PATH unas lineas mas
@@ -380,6 +381,7 @@ function runOpencode({ sessionId, message, cwd, command, timeoutMs, rememberSess
 }
 
 const server = http.createServer(async (req, res) => {
+  if (!requireAuth(req, res)) return;
   try {
     if (req.method === 'GET' && req.url === '/health') {
       sendJson(res, 200, {

@@ -12,6 +12,7 @@
 
 const http = require('http');
 const { execFileSync } = require('child_process');
+const { requireAuth } = require('./bridge-auth');
 
 const PORT = Number(process.env.HOST_DETECT_PORT || 5010);
 
@@ -73,6 +74,7 @@ function sendJson(res, status, payload) {
 }
 
 const server = http.createServer((req, res) => {
+  if (!requireAuth(req, res)) return;
   if (req.method === 'GET' && req.url === '/health') {
     sendJson(res, 200, { status: 'ok', service: 'host-detect' });
     return;

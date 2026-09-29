@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { bridgeHeaders } from '../../config/env';
 import {
   HostRuntime,
   HostRuntimeCommandResult,
@@ -32,7 +33,7 @@ export class OpenCodeRuntime implements HostRuntime {
   async getStatus(sessionId: string): Promise<HostRuntimeStatus | null> {
     if (!sessionId) return null;
     try {
-      const res = await fetch(`${this.bridgeBaseUrl()}/opencode/status?sessionId=${encodeURIComponent(sessionId)}`);
+      const res = await fetch(`${this.bridgeBaseUrl()}/opencode/status?sessionId=${encodeURIComponent(sessionId)}`, { headers: bridgeHeaders() });
       const bodyText = await res.text();
       if (!res.ok) return null;
       return this.normalizeStatus(JSON.parse(bodyText));
@@ -57,7 +58,7 @@ export class OpenCodeRuntime implements HostRuntime {
   async sendCommand(project: HostRuntimeProject, sessionId: string, message: string, timeoutMs = 600000): Promise<HostRuntimeCommandResult> {
     const res = await fetch(this.bridgeUrl, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: bridgeHeaders({ 'content-type': 'application/json' }),
       body: JSON.stringify({
         sessionId,
         message,
@@ -85,7 +86,7 @@ export class OpenCodeRuntime implements HostRuntime {
     const message = `eliminar ${workspaceUserId} ${projectName}`;
     const res = await fetch(this.bridgeUrl, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: bridgeHeaders({ 'content-type': 'application/json' }),
       body: JSON.stringify({
         sessionId,
         message,

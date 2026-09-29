@@ -4,7 +4,7 @@ import type { HostRuntime } from '../host-runtimes/HostRuntime';
 import type { StoredProject } from '../types/domain';
 import { isDeleteSuccessContract } from '../utils/contracts';
 import { workspaceUserId } from '../utils/names';
-import { env } from '../config/env';
+import { env, bridgeHeaders } from '../config/env';
 
 type HostTurnEvent = {
   projectId?: string | null;
@@ -68,7 +68,7 @@ async function teardownProjectContainers(project: StoredProject, deps: ProjectDe
   try {
     response = await fetch(env.dockerTeardown.url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: bridgeHeaders({ 'content-type': 'application/json' }),
       body: JSON.stringify({ projectPath: hostProjectPath })
     });
   } catch (err) {
