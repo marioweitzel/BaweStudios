@@ -1,0 +1,18 @@
+[Unit]
+Description=BaweStudio - bloquea desde internet los puertos publicados por Docker (salvo 80 y 443)
+After=docker.service network-online.target
+Requires=docker.service
+PartOf=docker.service
+
+# Instalacion (ver docs/Despliegue en la VPS.md):
+#   install -m 0750 -o root -g root infra/vps/docker-user-firewall.sh /usr/local/sbin/bawestudio-docker-user-firewall
+#   cp infra/vps/docker-user-firewall.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now docker-user-firewall
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/bawestudio-docker-user-firewall
+
+[Install]
+WantedBy=multi-user.target
