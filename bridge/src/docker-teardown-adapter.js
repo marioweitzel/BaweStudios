@@ -36,8 +36,36 @@ function findComposeFile(projectPath) {
   return null;
 }
 
+// Corre `docker compose` sin depender del .env del proyecto. Compose lee
+// siempre el .env de la carpeta del proyecto, y ese archivo (con las claves del
+// preview) es 600 de ubuntu: este servicio corre con otro usuario y no debe
+// poder leerlo -- para bajar contenedores no hace falta ningun valor, solo el
+// nombre del proyecto, que va fijo en `name:` del compose. Por eso se le pasa
+// --env-file /dev/null.
+// Si el compose declara variables obligatorias (`${VAR:?mensaje}`), Compose
+// falla al interpolar aunque solo se baje: se las define con un valor de relleno
+// y se reintenta (el valor no se usa para nada, solo satisface la sintaxis).
+async function runCompose(projectPath, composeFile, args) {
+  const filler = {};
+  for (let attempt = 0; attempt < 30; attempt++) {
+    try {
+      return await execFileAsync(
+        'docker',
+        ['compose', '--env-file', '/dev/null', '-f', composeFile, ...args],
+        { cwd: projectPath, env: { ...process.env, ...filler } }
+      );
+    } catch (err) {
+      const text = `${err && err.stderr ? err.stderr : ''}${err && err.message ? err.message : ''}`;
+      const match = /required variable ([A-Za-z0-9_]+) is missing a value/.exec(text);
+      if (!match || filler[match[1]] !== undefined) throw err;
+      filler[match[1]] = 'x';
+    }
+  }
+  throw new Error('demasiadas variables obligatorias sin definir en el compose');
+}
+
 async function listComposeContainerIds(projectPath, composeFile) {
-  const { stdout } = await execFileAsync('docker', ['compose', '-f', composeFile, 'ps', '-q'], { cwd: projectPath });
+  const { stdout } = await runCompose(projectPath, composeFile, ['ps', '-q']);
   return stdout.split('\n').map(line => line.trim()).filter(Boolean);
 }
 
@@ -57,7 +85,10 @@ async function teardown(projectPath) {
   if (!composeFile) {
     return { ok: true, skipped: true, reason: 'no_compose_file' };
   }
-  await execFileAsync('docker', ['compose', '-f', composeFile, 'down'], { cwd: projectPath });
+  // -v: el proyecto se esta eliminando, asi que tambien se borran sus volumenes
+  // (base de datos y archivos subidos); si no, los datos del cliente quedarian en
+  // el disco del servidor sin dueño.
+  await runCompose(projectPath, composeFile, ['down', '-v', '--remove-orphans']);
   const stillRunning = await listComposeContainerIds(projectPath, composeFile);
   if (stillRunning.length > 0) {
     return {
@@ -67,7 +98,7 @@ async function teardown(projectPath) {
       remaining: stillRunning
     };
   }
-  return { ok: true, composeFile };
+  return { ok: true, composeFile, volumesRemoved: true };
 }
 
 function sendJson(res, status, payload) {
