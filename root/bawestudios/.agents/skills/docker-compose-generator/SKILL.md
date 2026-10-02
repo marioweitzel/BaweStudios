@@ -34,15 +34,17 @@ artifacts.
 - `docker-compose-local.yml` is for local developer validation. It may use
   `build`, named volumes, published ports and `.env.example` values. Publish
   ports as `"${PORT_VAR}:CONTAINER_PORT"` — do not prefix with `127.0.0.1:`.
-  BaweStudio may be running on a remote host with a `remote-hosted` topology
-  (see `.agents/contracts/runtime-environment-contract.md`); a loopback-only
-  bind makes the preview unreachable for anyone not on that host.
+  This file is what the client runs on their own PC or internal server, where
+  a loopback-only bind could block access from the local network. When
+  BaweStudio runs on a remote host (`remote-hosted`, see
+  `.agents/contracts/runtime-environment-contract.md`) the project is shown
+  through `docker-compose-preview.yml` instead, never through this file.
 - `docker-compose-vps.yml` is for Ubuntu VPS Docker Swarm with Traefik. It must
   be suitable for `docker stack deploy`, use Swarm-compatible `deploy` labels,
   use the declared Traefik external network, and avoid localhost-only bindings.
 - The VPS file is configured and kept current for user deployment, but the LLM
   does not deploy to a VPS unless explicitly asked.
-- Read `deployment_topology` (`single_host` or `domain_hosted`) and
+- Read `deployment_topology` (`single_host`, `domain_hosted` or `unknown`) and
   `deployment_domain` from `project-context.md`/`log-preguntas.md` (set during
   the `B_DEPLOY` interview question). Still generate both compose files either
   way — this only decides which one `delivery-package-preparation` treats as
@@ -82,11 +84,21 @@ artifacts.
     `loadbalancer.server.port` pointing at the frontend's internal container
     port.
   - Plain Compose, no `deploy:` block — this is not a Swarm stack.
-  - When `docker-compose-preview.yml` exists for a project, it replaces
-    `docker-compose-local.yml` as the runtime validation target for that
-    project (see `docker-validation-gate` and `project-lifecycle-contract`) —
-    do not bring up both; they are the same stack, just exposed differently,
-    and running both would duplicate every container.
+  - Set an explicit top-level `name:` equal to the id and ALWAYS quote it
+    (`name: "0287432820001"`). Unquoted, YAML reads an all-digits id as a
+    number and Compose fails with "name must be a string". The VPS teardown
+    adapter identifies the stack by this name, so it must not depend on
+    `COMPOSE_PROJECT_NAME` or `COMPOSE_FILE` defined inside `.env`.
+  - Secret-bearing variables follow the same `${VAR:?message}` rule as the
+    delivery files (no defaults); they are read from the exhibition `.env`
+    created by `env-generator`. Set the backend's allowed-origin variable
+    (CORS/`FRONTEND_ORIGIN`) to `https://<id>.bawestudio.com.ar`.
+  - This file is BaweStudio's own: it is never delivered to the client and
+    never included in the ZIP.
+  - It is what BaweStudio shows to the client while the project is developed,
+    and it stays up. The delivered `docker-compose-local.yml` is validated
+    separately and transiently — see `docker-validation-gate`. Run them one
+    after the other, not at the same time.
 - Use the frontend port from `project-context.md` when present.
 - Backend defaults to port `3000` unless product authority says otherwise.
 - Database defaults to port `3306` only when MySQL or compatible DB is selected.
@@ -94,9 +106,10 @@ artifacts.
   `.env`, `.env.local` or real secrets.
 - Do not give a secret-bearing variable (JWT_SECRET, DB_PASSWORD, any seeded
   or initial admin password) a `${VAR:-value}` shell-default fallback in
-  either compose file. Reference it as `${VAR}` with no default. A missing
-  `.env` must make the container fail to start with a clear error, not run
-  silently on a predictable placeholder — a fallback like
+  either compose file. Reference it as `${VAR:?clear message}` — for example
+  `${DB_PASSWORD:?Falta DB_PASSWORD: copia .env.example como .env y completalo}`.
+  A missing `.env` must make the container fail to start with a clear,
+  readable error, not run silently on a predictable placeholder — a fallback like
   `${JWT_SECRET:-change-me}` is exactly what turned into the real signing key
   for a delivered project when `.env` was never created, and two different
   real projects have already been found sharing the exact same fallback

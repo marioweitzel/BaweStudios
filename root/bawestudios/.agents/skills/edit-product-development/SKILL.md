@@ -41,6 +41,15 @@ else should reach the caller in between.
 3. If `reference_assets` includes an image, look at it before implementing;
    it is the client's own marking of what to change.
 
+## Repackaging Items
+
+If the active item has `kind: "repackage"`, it is not a code change: skip
+backups, Low-Impact Rules and Validation. Read and execute
+`[WORKSPACE_ROOT]/.agents/skills/delivery-package-preparation/SKILL.md`
+using its "Repackaging On Request" section with the item's `compose_set`,
+then continue at "Refreshing Delivery" step 2 (mark `DONE`, record it in
+`task-log.md` tagged `[cambios]`). Do not touch any product source file.
+
 ## Low-Impact Rules
 
 - Before changing any file for the first time in this edit-queue run, copy
@@ -149,6 +158,9 @@ truncated or reordered.
   edits and original construction stay on separate tracks.
 - Do not require Docker validation for changes that do not touch runtime
   configuration, but do still confirm an executable product actually
-  builds and runs for the touched surface when applicable.
+  builds and runs for the touched surface when applicable. On a
+  `remote-hosted` BaweStudio, which compose runs follows "Compose Target" in
+  `runtime-environment-contract.md`: the preview compose, never the delivered
+  local one as the shown project.
 - Do not close an item as `DONE` without having refreshed the delivery
   package — a fix the client cannot see is not finished.

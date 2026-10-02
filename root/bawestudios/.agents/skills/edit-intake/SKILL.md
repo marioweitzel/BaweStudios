@@ -113,6 +113,13 @@ Repeat for as many items as the client wants to report:
      new workflow, a capability the product never had). Confirm briefly
      that it was understood, and handle it per "Handing Off An Extensión"
      below instead of adding it to this session's Ajuste list.
+   - **Reempaquetado**: the client asks to receive their package with a
+     different deployment compose than the one they got (for example they
+     chose a PC and now want to run it on a server, or the reverse). It is not
+     a product change. Ask which one they need (PC/server without own domain,
+     server with own domain, or both) and queue it as an Ajuste-type item with
+     `kind: "repackage"` and `compose_set` (see "Writing The Queue").
+     Never ask the client for any password or secret.
    - If unsure which one it is, ask one clarifying question instead of
      guessing.
 4. Ask: "¿Necesitás agregar otro cambio?" If yes, go back to step 1. If no,
@@ -137,6 +144,11 @@ If at least one item was classified as Ajuste:
   "created_at": "timestamp"
 }
 ```
+
+   A Reempaquetado item adds two fields to its entry: `"kind": "repackage"`
+   and `"compose_set": "local" | "vps" | "both"` (`local` = PC or server
+   without own domain, `vps` = server with own domain). Every other item
+   omits them.
 
 3. Set the file's own `status` to `OPEN`. Leave `active_item_id` as `null`
    — `edit-product-development` selects and activates items itself.

@@ -218,13 +218,15 @@ The local plan may be short and internal. Do not create a long planning artifact
 
 Executable BaWe products must run through Docker for runtime validation.
 
-Wherever this whole skill file references `docker-compose-local.yml` — in
-this section, in Vertical Development, in Tool Integration, anywhere: if
-`docker-compose-preview.yml` exists for this project (BaweStudio itself is
-`remote-hosted`, per `runtime-environment-contract.md`), use that file
-instead everywhere `docker-compose-local.yml` is mentioned in this skill — it
-is the same stack, just exposed through Traefik on a per-project subdomain
-instead of published host ports. Do not run both.
+Wherever this whole skill file says to run, show or validate the project
+through `docker-compose-local.yml` — in this section, in Vertical Development,
+in Tool Integration, anywhere — first apply "Compose Target" in
+`runtime-environment-contract.md`: when BaweStudio is `remote-hosted` the
+project runs and is shown through `docker-compose-preview.yml` (per-project
+subdomain, no host ports), the delivered `docker-compose-local.yml` is only
+validated transiently as that section describes, and if the project has no
+preview compose you do not bring up any compose and report
+`NEEDS_VALIDATION`. Never run local and preview at the same time.
 
 For Windows, local runtime means Docker Desktop with:
 

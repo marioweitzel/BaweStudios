@@ -90,6 +90,9 @@ chrome-profile*/
 *.log
 *.zip
 DELIVERY_ZIP_PASSWORD.txt
+.env
+.env.*   (except .env.example)
+docker-compose-preview.yml
 ```
 
 Never include internal files whose names contain:
@@ -127,7 +130,8 @@ For the compose file(s), do not include both `docker-compose*.yml` files by
 default. Read `deployment_topology` from `project-context.md`: include only
 `docker-compose-local.yml` when `single_host`, or only `docker-compose-vps.yml`
 when `domain_hosted`. If `deployment_topology` is missing (older project, asked
-before this question existed), include both rather than guessing wrong.
+before this question existed) or `unknown` (the client did not know or did not
+define where it will run), include both rather than guessing wrong.
 
 For source folders, copy source and required config, not dependency caches:
 
@@ -319,6 +323,35 @@ BaweStudios reads `.bawe/delivery-package.json` to show:
 - preview link from `preview.url`.
 - password handoff location from `password_file`, then reads that file from
   `[PROJECT_ROOT]` and delivers the password outside the zip.
+
+## Repackaging On Request
+
+A delivered project can be repackaged when the client changes where they will
+run it (for example they chose a PC and now want a server, or the reverse).
+Only the compose file(s) in the package change.
+
+- Trigger: the repackaging item handed over by `edit-intake`, not the normal
+  entry condition above. The project is already final: do not touch
+  `.bawe/component-queue.json`, do not change `deployment_topology` in
+  `project-context.md`.
+- Preconditions: `.bawe/delivery-package.json` has `status = READY`; the
+  requested set is `local`, `vps` or `both`; those compose files already exist
+  in `[PROJECT_ROOT]` and passed static validation.
+- Rebuild `delivery/[project_name]/` from the same source as the previous
+  delivery, replacing only the compose file(s) and the installation notes that
+  name them. The "Never include" rules above still apply (no `.env`, no preview
+  compose).
+- Create a NEW zip following "Protected Zip" with a NEW password, replacing
+  `delivery/[project_name].zip` and `DELIVERY_ZIP_PASSWORD.txt` consistently:
+  `ZIP_PATH` in the password file must equal `zip_path` in
+  `.bawe/delivery-package.json`. BaweStudio's download only works when
+  `status` is `READY`, `zip_path` and the password file's `ZIP_PATH` match,
+  `encryption.enabled` is true and `password_delivery` is valid; keep all those
+  keys and values unchanged in shape.
+- Update `included` and `docs` in `.bawe/delivery-package.json`; keep
+  `status = READY`.
+- The final message belongs to the invoking skill; do not use the exact
+  `Finalizado.` / `Parcial completado.` messages below for a repackaging.
 
 ## Exit
 

@@ -47,6 +47,38 @@ actually written in practice — treat it as a draft, not a frozen schema):
 
 If the file does not exist, assume `topology: "local"`.
 
+## Compose Target
+
+Which compose file runs a project while BaweStudio is developing it depends on
+`topology` from the file above. This is about where BaweStudio runs, not about
+where the client will run the delivered project (that is `deployment_topology`
+from `B_DEPLOY`, and it only decides which delivery compose goes in the ZIP):
+
+- `topology` `"local"` or file absent: run and show the project with
+  `docker-compose-local.yml`, exactly as before.
+- `topology` `"remote-hosted"`: show the project ONLY through
+  `docker-compose-preview.yml` (no host ports, public subdomain). Validate
+  without `localhost:port`: health and API with `docker compose -f
+  docker-compose-preview.yml exec`, and the UI flow through
+  `https://<id>.bawestudio.com.ar` once it responds.
+- `topology` `"remote-hosted"` and the project has no
+  `docker-compose-preview.yml` (built before it existed): do NOT bring up any
+  compose file. Mark runtime validation `NEEDS_VALIDATION`, state that the
+  preview compose is missing and stop; it is added by hand, not generated here.
+- In `remote-hosted` the delivered `docker-compose-local.yml` is still
+  validated, but transiently and as is: on a free host port passed from the
+  command line (`FRONTEND_PORT=<free port>`), checked on `localhost:<port>`
+  and then `docker compose down -v`, before the preview is brought up. Never
+  run it together with the preview. This relies on the host firewall keeping
+  Docker-published ports unreachable from the internet; if that cannot be
+  assumed, skip the transient run and record it as `NEEDS_VALIDATION`.
+- The delivered `docker-compose-vps.yml` is never deployed to Swarm as a
+  validation step; static `config` checks only. A failure on the client's side
+  is handled by support and does not block delivery.
+
+`docker-compose-preview.yml` is BaweStudio's own: never delivered, never in
+the ZIP.
+
 Do not persist the operating system in this file. Detect it live, every time
 it matters, with a one-line check (`process.platform` in Node, `uname -s`
 otherwise) — it is cheap to check and would go stale if persisted.
@@ -131,6 +163,10 @@ Docker CLI and Docker Compose may require elevated permissions on Windows.
 If Docker is required for validation and the daemon or config is inaccessible,
 record the exact permission failure and rerun with the allowed elevated path
 when available.
+
+On the Ubuntu host the LLM's user may not belong to the `docker` group. In
+that case run Docker commands with `sudo docker ...` (passwordless sudo is
+available there); do not change group membership or permissions to avoid it.
 
 Do not treat host Node checks as equivalent to Docker runtime readiness for an
 executable product.

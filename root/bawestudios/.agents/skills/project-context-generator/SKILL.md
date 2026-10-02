@@ -32,6 +32,11 @@ Create `project-context.md`, the canonical processed project context used by PRD
   `project.preview_subdomain_seq` — this value was assigned once by
   `bawe-initialization-logic` from the user-level `id_num.md` counter; never
   recompute or reassign it here.
+- `deployment_topology` (`single_host`, `domain_hosted` or `unknown`) and
+  `deployment_domain` copied verbatim from `log-preguntas.md` (B_DEPLOY) into
+  `project.deployment_topology` / `project.deployment_domain`.
+  `delivery-package-preparation` and `docker-compose-generator` read them from
+  `project-context.md`, so they must be carried here; never infer them.
 - Visual DNA, brand constraints and reference signals.
 - Lightweight assumptions, open ambiguities and product constraints.
 - Traceability back to `log-preguntas.md`.
@@ -50,6 +55,8 @@ project:
   pipeline: ""
   type: ""
   preview_subdomain_seq: ""
+  deployment_topology: ""
+  deployment_domain: ""
 section_a:
   status: "complete"
 section_b:

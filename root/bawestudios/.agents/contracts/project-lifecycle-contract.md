@@ -108,9 +108,12 @@ Rules:
 - Ubuntu VPS delivery uses Docker Swarm with Traefik and
   `docker-compose-vps.yml`.
 - The local compose file is the required runtime validation target — except
-  when `docker-compose-preview.yml` exists for the project (BaweStudio is
-  `remote-hosted`), in which case that file replaces it as the validation
-  target; see `docker-compose-generator/SKILL.md` and `docker-validation-gate/SKILL.md`.
+  when BaweStudio is `remote-hosted`: then the project is shown and validated
+  through `docker-compose-preview.yml`, and the delivered local compose is only
+  validated transiently; with no preview compose, nothing is brought up and
+  validation is `NEEDS_VALIDATION`. See "Compose Target" in
+  `runtime-environment-contract.md`, `docker-compose-generator/SKILL.md` and
+  `docker-validation-gate/SKILL.md`.
 - The VPS compose file is kept configured and current for the user, but the LLM
   does not deploy to a VPS unless explicitly asked.
 - Host runtime execution may support syntax checks, unit tests, package

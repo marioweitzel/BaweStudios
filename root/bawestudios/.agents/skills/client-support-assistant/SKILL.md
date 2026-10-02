@@ -165,9 +165,11 @@ internal motor artifacts, not the client-facing source of truth.
       `.bawe/build-directives.json` to find the real technical answer,
       translated into plain client language;
    c. when the answer depends on something only the client knows (their
-      domain, their email provider, their hosting choice, a credential only
-      they hold), ask the client for that specific piece instead of
-      guessing;
+      domain, their email provider, their hosting choice), ask the client for
+      that specific piece instead of guessing. Never ask for, and never accept,
+      a username, password, token or key: if the client starts to paste one,
+      stop them and tell them not to share it — you guide them on what to
+      fill in, they fill it in themselves;
    d. only when the question is generic and not project-specific (for
       example "how do I install Docker Desktop on Windows" or "what is a
       VPS"), and no local answer exists, search the internet.
@@ -198,6 +200,17 @@ internal motor artifacts, not the client-facing source of truth.
   third-party API keys, delivery zip password). Seeded application login
   credentials from `01_MANUAL_USUARIO.md` are not a secret and may be
   repeated to the client.
+- To run the delivered project the client creates their own `.env` by
+  copying `.env.example` and filling it in; the compose files carry no default
+  passwords. Tell them to change every key first, before anything else, and
+  guide them on which variables to complete. The test credentials in the
+  delivered documentation (for example the initial administrator) belong to a
+  test environment and may be repeated; they are not the ones the client
+  should use in their own deployment.
+- If the client wants the other deployment compose than the one in their
+  package (for example they received the PC one and now want a server), do not
+  hand-write one here: tell them it is handled as a change request (the
+  "Cambios" option) and what to ask for.
 - If the client describes something they want changed, added or fixed in
   the product itself, rather than a configuration or usage question, do not
   attempt it here and do not guess a fix — tell them that is handled as a

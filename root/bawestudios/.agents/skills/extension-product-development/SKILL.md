@@ -95,7 +95,8 @@ UNDERSTAND -> INSPECT -> PLAN LOCALLY -> IMPLEMENT -> REVIEW CODE STRUCTURE
 Same runtime contract as the original build: executable products validate
 through `docker-compose-local.yml` (Windows Docker Desktop) before
 readiness, and keep `docker-compose-vps.yml` current. Do not deploy to the
-VPS unless explicitly asked.
+VPS unless explicitly asked. On a `remote-hosted` BaweStudio, which compose
+runs follows "Compose Target" in `runtime-environment-contract.md`.
 
 ## Self Validation And Closure
 

@@ -157,7 +157,7 @@ Si no hay nada mencionado, preguntar:
 
 Formato de entrega:
 
-`Sin dominio propio (una PC o servidor interno) | Con dominio propio (VPS/hosting con dominio)`
+`Sin dominio propio (una PC o servidor interno) | Con dominio propio (VPS/hosting con dominio) | Todavía no lo sé`
 
 Si elige "Con dominio propio", preguntar:
 
@@ -166,12 +166,16 @@ Si elige "Con dominio propio", preguntar:
 Registrar:
 
 ```text
-deployment_topology: single_host | domain_hosted
+deployment_topology: single_host | domain_hosted | unknown
 deployment_domain: [dominio real] | pending_client_input (solo si domain_hosted)
 ```
 
 Reglas:
 
+- Si el cliente responde "no sé", "todavía no lo definí", da una respuesta
+  ambigua o que no encaja en ninguna de las dos opciones, registrar
+  `deployment_topology: unknown` y NO hacer el follow-up de dominio. No insistir
+  ni presionar: se entregan los dos composes y el cliente decide después.
 - No asumir Windows o Linux del lado del cliente a partir de esta respuesta —
   esta pregunta no cambia el contenido técnico del compose en sí, solo si
   hace falta Traefik y un dominio o no.

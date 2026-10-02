@@ -79,12 +79,19 @@ keys, zip passwords) stay out of the documentation.
   "Acceso inicial" section with the actual username and password for each
   seeded role, so the client can log in without asking. This is a startup
   value the client needs, not a secret to withhold — see the carve-out under
-  Forbidden Content.
+  Forbidden Content. List exactly the credentials seeded in the exhibition
+  `.env` (one per role, see `env-generator`), say they are test-environment
+  credentials to be replaced before real use, and warn the client not to load
+  real data into the test environment: it is reachable by whoever has the
+  address and is protected only by those accounts.
 
 `02_INSTALACION.md` must include:
 
 - requirements;
-- environment setup using `.env.example`;
+- environment setup using `.env.example`: the compose files carry no default
+  passwords, so the client must copy `.env.example` to `.env` and complete it
+  before the app starts, changing every key first, and must never share
+  those values with anyone (including support);
 - how to run locally with Docker when Docker artifacts exist;
 - the local URL to open once the app is running (e.g. `http://localhost:<port>`,
   using the port declared in the delivered `docker-compose-local.yml`/
