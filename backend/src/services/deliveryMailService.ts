@@ -19,6 +19,12 @@ function oneLine(value: string | null | undefined) {
   return String(value || '').replace(/[\r\n]+/g, ' ').trim();
 }
 
+// Sin "https://": el mail no lleva enlaces, el cliente escribe la direccion en
+// el navegador (proteccion contra correos falsos que imitan el aviso).
+function displayAddress(url: string) {
+  return String(url || '').trim().replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').replace(/\/+$/, '');
+}
+
 export function buildDeliveryMail(args: { kind: DeliveryMailKind; userName: string; projectName: string; baseUrl: string }) {
   const word = args.kind === 'edit' ? 'edición' : 'proyecto';
   const greeting = args.userName ? `Hola ${args.userName},` : 'Hola,';
@@ -29,13 +35,17 @@ export function buildDeliveryMail(args: { kind: DeliveryMailKind; userName: stri
     `Tu ${word} "${args.projectName}" finalizó.`,
     '',
     'Ya podés verlo:',
-    `1. Entrá a BaweStudio e iniciá sesión: ${args.baseUrl}`,
-    '2. Andá a la sección "Proyectos".',
+    `1. Abrí tu navegador y escribí: ${displayAddress(args.baseUrl)}`,
+    '2. Iniciá sesión y andá a la sección "Proyectos".',
     '3. Ahí vas a encontrar tu web para probarla y el archivo ZIP para descargarla.',
     '',
     'Si querés pedir un cambio, hacelo desde el mismo lugar: "Preview" → "Editar".',
     '',
     'Si necesitás una guía para publicar tu web en tu propio servidor o computadora, usá el botón "Soporte".',
+    '',
+    'Por tu seguridad: BaweStudio nunca te pide que hagas clic en enlaces',
+    'de un correo. Si ves un enlace en este mensaje, no lo uses: entrá siempre',
+    'escribiendo la dirección directamente en tu navegador.',
     '',
     'Gracias por confiar en BaweStudio.',
     '',
