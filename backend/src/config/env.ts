@@ -41,6 +41,18 @@ export const env = {
     url: process.env.DOCKER_TEARDOWN_URL || 'http://host.docker.internal:5011/teardown',
     hostProjectsRoot: process.env.BAWE_HOST_PROJECTS_ROOT || ''
   },
+  // Aviso por correo "tu proyecto/edicion finalizo" (solo VPS). Postfix corre
+  // en el host, fuera de Docker (mismo molde que los bridges). Sin
+  // BAWE_APP_URL no se manda. Es distinta de BAWE_PUBLIC_BASE_URL a proposito:
+  // esa la lee el motor para armar previews (en la VPS es http://<ip>), y el
+  // cliente necesita la direccion HTTPS real de la aplicacion.
+  mail: {
+    host: process.env.SMTP_HOST || 'host.docker.internal',
+    port: Number(process.env.SMTP_PORT || 25),
+    fromName: process.env.MAIL_FROM_NAME || 'BaweStudio',
+    fromAddress: process.env.MAIL_FROM_ADDRESS || 'no-reply@bawestudio.com.ar',
+    appUrl: (process.env.BAWE_APP_URL || '').trim()
+  },
   db: {
     host: process.env.DB_HOST || '127.0.0.1',
     port: Number(process.env.DB_PORT || 3306),

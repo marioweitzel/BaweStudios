@@ -13,6 +13,7 @@ import { createHostRuntime } from './host-runtimes/HostRuntimeFactory';
 import { createAuth } from './auth/auth';
 import { createChatHistoryService } from './services/chatHistoryService';
 import { createDeliveryFieldsService, requireDeliveryInfo } from './services/deliveryService';
+import { createDeliveryMailService } from './services/deliveryMailService';
 import { createDevelopmentJobService } from './services/developmentJobService';
 import { createEditJobService } from './services/editJobService';
 import { createInactivityDeletionService } from './services/inactivityDeletionService';
@@ -112,6 +113,12 @@ const {
   sendMotorDeleteCommand
 } = createProjectDeletionService({ hostRuntime, recordHostTurnEvent });
 
+// findUserById se declara mas abajo (createAuth): se resuelve recien al enviar.
+const { notifyDeliveryFinished } = createDeliveryMailService({
+  findUserById: (id) => findUserById(id),
+  recordHostTurnEvent
+});
+
 function buildProjectPath(projectName: string, userId?: string) {
   const folderName = normalizeProjectName(projectName);
   return userId ? path.join(PROJECTS_ROOT, workspaceUserId(userId), folderName) : path.join(PROJECTS_ROOT, folderName);
@@ -173,6 +180,10 @@ async function finalizeProjectDelivery(args: {
 }) {
   try {
     const delivery = requireDeliveryInfo(args.project);
+    // Estado leido justo antes de actualizar (sin await de por medio): el aviso
+    // por mail sale solo en la transicion real a 'ready', aunque este camino lo
+    // alcancen el job, el socket y la descarga.
+    const wasReady = readDb().projects.find(p => p.id === args.project.id)?.status === 'ready';
     const updatedProject = updateProject(args.project.id, args.userId, {
       status: 'ready',
       previewUrl: delivery.previewUrl,
@@ -197,6 +208,10 @@ async function finalizeProjectDelivery(args: {
         zipEncrypted: delivery.zipEncrypted
       }
     });
+
+    if (!wasReady) {
+      void notifyDeliveryFinished({ kind: 'project', project: updatedProject, userId: args.userId, sessionId: args.sessionId });
+    }
 
     if (args.socket) {
       args.socket.emit('host:pending', { pending: false });
@@ -242,6 +257,7 @@ async function notifyEditFinished(args: { project: StoredProject; userId: string
     text: 'Tu edición fue aplicada. Los cambios ya están disponibles en "Proyectos" -> "Preview".'
   });
   io.to(args.userId).emit('project:updated', publicProject(args.project));
+  void notifyDeliveryFinished({ kind: 'edit', project: args.project, userId: args.userId, sessionId: args.sessionId });
 }
 
 function closeInterviewFromFilesystem(project: StoredProject, userId: string) {
