@@ -158,4 +158,10 @@ A blocker must include:
 - what is needed;
 - independent work still possible, if any.
 
+Before keeping a blocker, check whether the missing item is something a skill
+of the engine produces (for example a compose file from
+`docker-compose-generator/SKILL.md`). If so, the blocker is resolved by running
+that skill, not by waiting. Re-evaluate every recorded blocker against the
+current rules when resuming; do not inherit it from `task-log.md`.
+
 Do not mark a task ready if a blocker affects the requested product outcome.

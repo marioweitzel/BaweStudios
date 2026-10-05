@@ -56,10 +56,9 @@ Skip only for explicitly non-executable/static deliverables, and record why.
      from the command line (`FRONTEND_PORT=<free port>`, no file edit), check
      it on `localhost:<port>`, then `docker compose down -v` it. Then bring up
      `docker-compose-preview.yml` and leave it up. Never run both at once.
-   - `topology` `remote-hosted` and `docker-compose-preview.yml` absent
-     (project built before the preview existed): do not run any compose; mark
-     runtime validation `NEEDS_VALIDATION` and say the preview compose is
-     missing.
+   - `topology` `remote-hosted` and `docker-compose-preview.yml` missing: it is
+     a blocking error (see below); the compose files must have been produced
+     by `docker-compose-generator/SKILL.md`.
 9. Summarize runtime blockers and config warnings.
 
 ## Minimal Output
@@ -70,6 +69,7 @@ Skip only for explicitly non-executable/static deliverables, and record why.
 
 - `docker-compose-local.yml` is missing for an executable product.
 - `docker-compose-vps.yml` is missing for an executable product.
+- `docker-compose-preview.yml` is missing when `topology` is `remote-hosted`.
 - Compose file is invalid.
 - Required service is missing.
 - Required env var is undeclared.

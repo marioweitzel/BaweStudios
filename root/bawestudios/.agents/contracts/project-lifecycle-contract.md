@@ -110,8 +110,7 @@ Rules:
 - The local compose file is the required runtime validation target — except
   when BaweStudio is `remote-hosted`: then the project is shown and validated
   through `docker-compose-preview.yml`, and the delivered local compose is only
-  validated transiently; with no preview compose, nothing is brought up and
-  validation is `NEEDS_VALIDATION`. See "Compose Target" in
+  validated transiently. See "Compose Target" in
   `runtime-environment-contract.md`, `docker-compose-generator/SKILL.md` and
   `docker-validation-gate/SKILL.md`.
 - The VPS compose file is kept configured and current for the user, but the LLM

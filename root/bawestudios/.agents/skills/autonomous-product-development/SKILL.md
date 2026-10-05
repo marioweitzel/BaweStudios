@@ -224,9 +224,8 @@ in Tool Integration, anywhere — first apply "Compose Target" in
 `runtime-environment-contract.md`: when BaweStudio is `remote-hosted` the
 project runs and is shown through `docker-compose-preview.yml` (per-project
 subdomain, no host ports), the delivered `docker-compose-local.yml` is only
-validated transiently as that section describes, and if the project has no
-preview compose you do not bring up any compose and report
-`NEEDS_VALIDATION`. Never run local and preview at the same time.
+validated transiently as that section describes. Never run local and preview at
+the same time.
 
 For Windows, local runtime means Docker Desktop with:
 
@@ -240,13 +239,14 @@ For Ubuntu VPS delivery, the project must keep an updated Swarm/Traefik file:
 docker-compose-vps.yml
 ```
 
-Before the first runtime validation of an executable product, create or update:
+Before runtime validation of an executable product, and whenever any of the
+files below is missing, create or update:
 
 - Dockerfiles needed by frontend/backend/runtime boundaries;
-- `docker-compose-local.yml`;
-- `docker-compose-vps.yml`;
-- `.env.example`;
-- `.dockerignore`.
+- the compose files, `.env.example` and `.dockerignore`, by running
+  `docker-compose-generator/SKILL.md`. Do not write the compose files by hand.
+  It produces `docker-compose-local.yml`, `docker-compose-vps.yml` and, when
+  `topology` is `remote-hosted`, `docker-compose-preview.yml`.
 
 Use `docker-compose-local.yml` to run, inspect and validate the app locally.
 Host `node`, `npm`, database or framework commands are allowed for install,
