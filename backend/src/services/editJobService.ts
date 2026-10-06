@@ -54,10 +54,37 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Mismos criterios que developmentJobService.ts (ver alli el motivo): margen
+// sobre la estimacion, espera minima si la hora ya paso, y tope de limites
+// consecutivos. Los rechazos por limite no consumen intentos.
+const SESSION_WINDOW_MARGIN_MINUTES = Number(process.env.HOST_SESSION_WINDOW_MARGIN_MINUTES || 10);
+const PARSED_RESET_MARGIN_MINUTES = 1;
+const RATE_LIMIT_MIN_WAIT_MINUTES = Number(process.env.HOST_RATE_LIMIT_MIN_WAIT_MINUTES || 5);
+const RATE_LIMIT_MAX_WAITS = Number(process.env.HOST_RATE_LIMIT_MAX_WAITS || 6);
+
 function estimateSessionResumeAt(chainStartedAtIso: string): string {
   const resumeAt = new Date(chainStartedAtIso);
   resumeAt.setHours(resumeAt.getHours() + SESSION_WINDOW_FALLBACK_HOURS);
+  resumeAt.setMinutes(resumeAt.getMinutes() + SESSION_WINDOW_MARGIN_MINUTES);
   return resumeAt.toISOString();
+}
+
+function resolveRateLimitResumeAt(resetAtIso: string | null | undefined, chainStartedAtIso: string): { resumeAt: string; source: string } {
+  let resumeMs: number;
+  let source: string;
+  if (resetAtIso && Number.isFinite(Date.parse(resetAtIso))) {
+    resumeMs = Date.parse(resetAtIso) + PARSED_RESET_MARGIN_MINUTES * 60 * 1000;
+    source = 'parsed';
+  } else {
+    resumeMs = Date.parse(estimateSessionResumeAt(chainStartedAtIso));
+    source = 'estimated';
+  }
+  const floorMs = Date.now() + RATE_LIMIT_MIN_WAIT_MINUTES * 60 * 1000;
+  if (resumeMs < floorMs) {
+    resumeMs = floorMs;
+    source += '_floored';
+  }
+  return { resumeAt: new Date(resumeMs).toISOString(), source };
 }
 
 export function createEditJobService(deps: EditJobDeps) {
@@ -230,7 +257,10 @@ export function createEditJobService(deps: EditJobDeps) {
 
   async function runEditJob(projectId: string, userId: string, reason: string) {
     const maxAttempts = deps.hostBackgroundMaxAttempts;
-    const chainStartedAtIso = new Date().toISOString();
+    // Se reancla al reanudar tras un limite; rateLimitWaits cuenta limites
+    // seguidos sin completar un turno.
+    let chainStartedAtIso = new Date().toISOString();
+    let rateLimitWaits = 0;
     deps.recordHostTurnEvent({
       projectId,
       userId,
@@ -287,6 +317,7 @@ export function createEditJobService(deps: EditJobDeps) {
               responseText: hostResponse.text
             });
             if (result === 'continue') {
+          rateLimitWaits = 0;
               await sleep(1000);
               continue;
             }
@@ -306,6 +337,7 @@ export function createEditJobService(deps: EditJobDeps) {
             responseText: hostStatus.text
           });
           if (result === 'continue') {
+          rateLimitWaits = 0;
             await sleep(1000);
             continue;
           }
@@ -328,6 +360,7 @@ export function createEditJobService(deps: EditJobDeps) {
         const responseText = await sendHostRuntimeCommand(project, sessionId, command);
         const result = await processEditResponse({ project, projectId, userId, sessionId, command, attempt, responseText });
         if (result === 'continue') {
+          rateLimitWaits = 0;
           await sleep(1000);
           continue;
         }
@@ -335,7 +368,28 @@ export function createEditJobService(deps: EditJobDeps) {
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         if (error instanceof HostRuntimeRateLimitedError) {
-          const resumeAt = error.resetAt || estimateSessionResumeAt(chainStartedAtIso);
+          rateLimitWaits += 1;
+          if (rateLimitWaits > RATE_LIMIT_MAX_WAITS) {
+            await deps.upsertHostJob({
+              projectId,
+              userId,
+              sessionId,
+              status: 'edit_failed',
+              command,
+              error: `El host sigue en limite de uso tras ${RATE_LIMIT_MAX_WAITS} esperas consecutivas sin completar un turno`,
+              attempts: attempt,
+              finished: true
+            });
+            deps.recordHostTurnEvent({
+              projectId,
+              userId,
+              sessionId,
+              eventType: 'edit_background.job.rate_limit_gave_up',
+              payload: { attempt, waits: rateLimitWaits - 1, maxWaits: RATE_LIMIT_MAX_WAITS }
+            });
+            return;
+          }
+          const { resumeAt, source: resumeSource } = resolveRateLimitResumeAt(error.resetAt, chainStartedAtIso);
           await deps.upsertHostJob({
             projectId,
             userId,
@@ -354,12 +408,15 @@ export function createEditJobService(deps: EditJobDeps) {
             payload: {
               attempt,
               resumeAt,
-              source: error.resetAt ? 'parsed' : 'estimated',
+              source: resumeSource,
+              wait: rateLimitWaits,
               chainStartedAt: chainStartedAtIso
             }
           });
           const waitMs = Math.max(0, new Date(resumeAt).getTime() - Date.now());
           await sleep(waitMs);
+          chainStartedAtIso = new Date().toISOString();
+          attempt--;
           continue;
         }
         if (error instanceof HostRuntimeStillRunningError) {
@@ -383,6 +440,7 @@ export function createEditJobService(deps: EditJobDeps) {
           if (hostResponse.text) {
             const result = await processEditResponse({ project, projectId, userId, sessionId, command, attempt, responseText: hostResponse.text });
             if (result === 'continue') {
+          rateLimitWaits = 0;
               await sleep(1000);
               continue;
             }
@@ -412,6 +470,7 @@ export function createEditJobService(deps: EditJobDeps) {
           if (hostResponse.text) {
             const result = await processEditResponse({ project, projectId, userId, sessionId, command, attempt, responseText: hostResponse.text });
             if (result === 'continue') {
+          rateLimitWaits = 0;
               await sleep(1000);
               continue;
             }
@@ -430,6 +489,7 @@ export function createEditJobService(deps: EditJobDeps) {
             responseText: hostStatus.text
           });
           if (result === 'continue') {
+          rateLimitWaits = 0;
             await sleep(1000);
             continue;
           }
