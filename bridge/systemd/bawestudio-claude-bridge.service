@@ -7,6 +7,7 @@ Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/BaweStudiosLinux
 Environment=CLAUDE_BRIDGE_PORT=5001
+ExecStartPre=+/bin/sh -c 'mkdir -p /home/ubuntu/BaweStudiosLinux/logs && chown ubuntu:ubuntu /home/ubuntu/BaweStudiosLinux/logs'
 ExecStart=/usr/bin/node /home/ubuntu/BaweStudiosLinux/bridge/src/claude-bridge.js
 Restart=on-failure
 RestartSec=3

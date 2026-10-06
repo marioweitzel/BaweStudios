@@ -1,0 +1,11 @@
+# Rotacion de los logs de BaweStudio en la VPS: diaria, se conservan 10 dias.
+# Instalacion: sudo cp infra/vps/bawestudio-logs.logrotate /etc/logrotate.d/bawestudio-logs
+/home/ubuntu/BaweStudiosLinux/logs/*.log {
+    daily
+    rotate 10
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+}
