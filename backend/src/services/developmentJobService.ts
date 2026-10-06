@@ -9,6 +9,25 @@ import { isFinalContract, isPartialContract } from '../utils/contracts';
 // resuelta a ISO/UTC por el bridge) es siempre la fuente de verdad.
 const SESSION_WINDOW_FALLBACK_HOURS = Number(process.env.HOST_SESSION_WINDOW_FALLBACK_HOURS || 5);
 
+// Margen que se suma a la hora de reanudacion estimada: el reset real del
+// huesped puede llegar unos minutos despues de chainStart + ventana (el
+// 6/10/2026 se reanudo 22 s antes del reset real y Codex rechazo 3 intentos).
+const SESSION_WINDOW_MARGIN_MINUTES = Number(process.env.HOST_SESSION_WINDOW_MARGIN_MINUTES || 10);
+
+// Margen para una hora ya parseada del mensaje del huesped ("try again at
+// 5:31 AM" viene truncada al minuto).
+const PARSED_RESET_MARGIN_MINUTES = 1;
+
+// Si la hora de reanudacion calculada ya paso (estimacion vieja, o limite
+// que reaparece), se espera al menos esto antes de reintentar: evita rafagas
+// de reintentos instantaneos que agotan los intentos (6/10/2026: 76 en 7 min).
+const RATE_LIMIT_MIN_WAIT_MINUTES = Number(process.env.HOST_RATE_LIMIT_MIN_WAIT_MINUTES || 5);
+
+// Limites consecutivos sin ningun turno completado antes de dar el job por
+// fallido. Los rechazos por limite no consumen intentos; este tope evita
+// esperar para siempre si el huesped nunca se libera.
+const RATE_LIMIT_MAX_WAITS = Number(process.env.HOST_RATE_LIMIT_MAX_WAITS || 6);
+
 // Cada cuanto el supervisor revisa si hay proyectos "building" sin ningun job
 // corriendo en memoria (ver startStuckJobSupervisor). Antes de esto, la unica
 // red de recuperacion era un restart completo del backend -- si un job moria
@@ -60,7 +79,32 @@ function sleep(ms: number) {
 function estimateSessionResumeAt(chainStartedAtIso: string): string {
   const resumeAt = new Date(chainStartedAtIso);
   resumeAt.setHours(resumeAt.getHours() + SESSION_WINDOW_FALLBACK_HOURS);
+  resumeAt.setMinutes(resumeAt.getMinutes() + SESSION_WINDOW_MARGIN_MINUTES);
   return resumeAt.toISOString();
+}
+
+// Racha de continuaciones de un job: su inicio (para estimar el reset) y
+// cuantos limites seguidos llevamos sin completar un turno.
+type RateLimitChainState = { chainStartedAtIso: string; rateLimitWaits: number };
+
+// Hora efectiva de reanudacion: la parseada (+margen) o la estimada; nunca
+// anterior a ahora + espera minima.
+function resolveRateLimitResumeAt(resetAtIso: string | null | undefined, chainStartedAtIso: string): { resumeAt: string; source: string } {
+  let resumeMs: number;
+  let source: string;
+  if (resetAtIso && Number.isFinite(Date.parse(resetAtIso))) {
+    resumeMs = Date.parse(resetAtIso) + PARSED_RESET_MARGIN_MINUTES * 60 * 1000;
+    source = 'parsed';
+  } else {
+    resumeMs = Date.parse(estimateSessionResumeAt(chainStartedAtIso));
+    source = 'estimated';
+  }
+  const floorMs = Date.now() + RATE_LIMIT_MIN_WAIT_MINUTES * 60 * 1000;
+  if (resumeMs < floorMs) {
+    resumeMs = floorMs;
+    source += '_floored';
+  }
+  return { resumeAt: new Date(resumeMs).toISOString(), source };
 }
 
 export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
@@ -186,17 +230,41 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
     sessionId: string;
     command: string | null;
     attempt: number;
-    chainStartedAtIso: string;
-  }) {
-    const { projectId, userId, sessionId, command, attempt, chainStartedAtIso } = args;
-    const resumeAt = estimateSessionResumeAt(chainStartedAtIso);
+    state: RateLimitChainState;
+    resetAt?: string | null;
+    message?: string;
+    origin?: string;
+  }): Promise<boolean> {
+    const { projectId, userId, sessionId, command, attempt, state, resetAt, message, origin = 'poll' } = args;
+    state.rateLimitWaits += 1;
+    if (state.rateLimitWaits > RATE_LIMIT_MAX_WAITS) {
+      await deps.upsertHostJob({
+        projectId,
+        userId,
+        sessionId,
+        status: 'failed',
+        command,
+        error: `El host sigue en limite de uso tras ${RATE_LIMIT_MAX_WAITS} esperas consecutivas sin completar un turno`,
+        attempts: attempt,
+        finished: true
+      });
+      deps.recordHostTurnEvent({
+        projectId,
+        userId,
+        sessionId,
+        eventType: 'background.job.rate_limit_gave_up',
+        payload: { attempt, waits: state.rateLimitWaits - 1, maxWaits: RATE_LIMIT_MAX_WAITS }
+      });
+      return false;
+    }
+    const { resumeAt, source } = resolveRateLimitResumeAt(resetAt, state.chainStartedAtIso);
     await deps.upsertHostJob({
       projectId,
       userId,
       sessionId,
       status: 'rate_limited',
       command,
-      error: 'Host alcanzo el limite de uso/sesion (detectado durante poll de estado)',
+      error: message || 'Host alcanzo el limite de uso/sesion (detectado durante poll de estado)',
       attempts: attempt,
       resumeAt
     });
@@ -205,10 +273,20 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
       userId,
       sessionId,
       eventType: 'background.job.rate_limited',
-      payload: { attempt, resumeAt, source: 'poll_estimated', chainStartedAt: chainStartedAtIso }
+      payload: {
+        attempt,
+        resumeAt,
+        source: `${origin}_${source}`,
+        wait: state.rateLimitWaits,
+        chainStartedAt: state.chainStartedAtIso
+      }
     });
     const waitMs = Math.max(0, new Date(resumeAt).getTime() - Date.now());
     await sleep(waitMs);
+    // Reanuda una ventana nueva: el reloj de la racha empieza ahora, no en el
+    // inicio de la racha anterior (si no, el proximo limite se estima en pasado).
+    state.chainStartedAtIso = new Date().toISOString();
+    return true;
   }
 
   async function processDevelopmentResponse(args: {
@@ -284,7 +362,15 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
     // arranca de nuevo: manual, por auto-continue de contrato parcial, o por
     // recuperacion al bootear). Sirve como fallback para estimar el reset del
     // limite de uso/sesion cuando el bridge no pudo resolver una hora exacta.
-    const chainStartedAtIso = new Date().toISOString();
+    // Se reancla cada vez que se reanuda tras un limite (ver handleBackgroundRateLimit).
+    const state: RateLimitChainState = { chainStartedAtIso: new Date().toISOString(), rateLimitWaits: 0 };
+    // Un turno completado (contrato parcial) corta la racha de limites; los
+    // rechazos por limite no consumen intentos (se compensa el attempt++ del for).
+    const processResponse = async (a: Parameters<typeof processDevelopmentResponse>[0]) => {
+      const result = await processDevelopmentResponse(a);
+      if (result === 'continue') state.rateLimitWaits = 0;
+      return result;
+    };
     deps.recordHostTurnEvent({
       projectId,
       userId,
@@ -331,18 +417,19 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
             attempt: Number(existingJob.attempts || attempt)
           });
           if (hostResponse.rateLimited) {
-            await handleBackgroundRateLimit({
+            if (!(await handleBackgroundRateLimit({
               projectId,
               userId,
               sessionId: existingJob.bs_session_id,
               command: existingJob.command,
               attempt: Number(existingJob.attempts || attempt),
-              chainStartedAtIso
-            });
+              state
+            }))) return;
+            attempt--;
             continue;
           }
           if (hostResponse.text) {
-            const result = await processDevelopmentResponse({
+            const result = await processResponse({
               project,
               projectId,
               userId,
@@ -361,7 +448,7 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
         }
 
         if (hostStatus?.status === 'completed' && hostStatus.text) {
-          const result = await processDevelopmentResponse({
+          const result = await processResponse({
             project,
             projectId,
             userId,
@@ -391,7 +478,7 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
 
       try {
         const responseText = await sendHostRuntimeCommand(project, sessionId, command);
-        const result = await processDevelopmentResponse({ project, projectId, userId, sessionId, command, attempt, responseText });
+        const result = await processResponse({ project, projectId, userId, sessionId, command, attempt, responseText });
         if (result === 'continue') {
           await sleep(1000);
           continue;
@@ -400,31 +487,18 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         if (error instanceof HostRuntimeRateLimitedError) {
-          const resumeAt = error.resetAt || estimateSessionResumeAt(chainStartedAtIso);
-          await deps.upsertHostJob({
+          if (!(await handleBackgroundRateLimit({
             projectId,
             userId,
             sessionId,
-            status: 'rate_limited',
             command,
-            error: error.message,
-            attempts: attempt,
-            resumeAt
-          });
-          deps.recordHostTurnEvent({
-            projectId,
-            userId,
-            sessionId,
-            eventType: 'background.job.rate_limited',
-            payload: {
-              attempt,
-              resumeAt,
-              source: error.resetAt ? 'parsed' : 'estimated',
-              chainStartedAt: chainStartedAtIso
-            }
-          });
-          const waitMs = Math.max(0, new Date(resumeAt).getTime() - Date.now());
-          await sleep(waitMs);
+            attempt,
+            state,
+            resetAt: error.resetAt,
+            message: error.message,
+            origin: 'send'
+          }))) return;
+          attempt--;
           continue;
         }
         if (error instanceof HostRuntimeStillRunningError) {
@@ -446,11 +520,12 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
           });
           const hostResponse = await waitForHostSessionResult({ projectId, userId, sessionId, command, attempt });
           if (hostResponse.rateLimited) {
-            await handleBackgroundRateLimit({ projectId, userId, sessionId, command, attempt, chainStartedAtIso });
+            if (!(await handleBackgroundRateLimit({ projectId, userId, sessionId, command, attempt, state }))) return;
+            attempt--;
             continue;
           }
           if (hostResponse.text) {
-            const result = await processDevelopmentResponse({ project, projectId, userId, sessionId, command, attempt, responseText: hostResponse.text });
+            const result = await processResponse({ project, projectId, userId, sessionId, command, attempt, responseText: hostResponse.text });
             if (result === 'continue') {
               await sleep(1000);
               continue;
@@ -479,11 +554,12 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
           });
           const hostResponse = await waitForHostSessionResult({ projectId, userId, sessionId, command, attempt });
           if (hostResponse.rateLimited) {
-            await handleBackgroundRateLimit({ projectId, userId, sessionId, command, attempt, chainStartedAtIso });
+            if (!(await handleBackgroundRateLimit({ projectId, userId, sessionId, command, attempt, state }))) return;
+            attempt--;
             continue;
           }
           if (hostResponse.text) {
-            const result = await processDevelopmentResponse({ project, projectId, userId, sessionId, command, attempt, responseText: hostResponse.text });
+            const result = await processResponse({ project, projectId, userId, sessionId, command, attempt, responseText: hostResponse.text });
             if (result === 'continue') {
               await sleep(1000);
               continue;
@@ -493,7 +569,7 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
           return;
         }
         if (hostStatus?.status === 'completed' && hostStatus.text) {
-          const result = await processDevelopmentResponse({
+          const result = await processResponse({
             project,
             projectId,
             userId,

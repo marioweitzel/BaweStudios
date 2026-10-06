@@ -11,7 +11,8 @@
 // backend nunca debe intentar interpretar texto de hora por su cuenta.
 
 const LIMIT_PATTERN = /you.?ve hit your (?:session|usage) limit/i;
-const RESET_TIME_PATTERN = /resets?\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?/i;
+// "resets 3am" (Claude) o "try again at 5:31 AM" (Codex: "...purchase more credits or try again at 5:31 AM.").
+const RESET_TIME_PATTERN = /(?:resets?|try\s+again)\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?/i;
 
 function resolveResetIso(match, now) {
   if (!match) return null;
