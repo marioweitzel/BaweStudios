@@ -27,6 +27,7 @@ import { createMysqlStore } from './store/mysqlStore';
 import { buildWebContinuationCommand, buildWebEditCommand } from './routers/web/webCommands';
 import { registerWebHttpRoutes } from './routers/web/httpRoutes';
 import { registerWebSocketFlow } from './routers/web/webSocketFlow';
+import { createSecurityStrikeService } from './services/securityStrikeService';
 import {
   INTERVIEW_COMPLETE_NOTICE,
   env
@@ -104,6 +105,8 @@ const {
   updateChatHistorySession,
   updateChatHistoryTurn
 } = createChatHistoryService({ readDb, writeDb });
+
+const { registerStrike: registerSecurityStrike } = createSecurityStrikeService({ readDb, writeDb });
 
 const {
   deliveryFieldsForProject
@@ -416,6 +419,7 @@ registerWebHttpRoutes(app, {
 });
 
 registerWebSocketFlow(io, {
+  registerSecurityStrike,
   activeProjects,
   appendChatHistoryMessage,
   confirmPendingChatTurn,

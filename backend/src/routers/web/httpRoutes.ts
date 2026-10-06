@@ -105,6 +105,9 @@ export function registerWebHttpRoutes(app: Application, deps: RegisterWebHttpRou
     if (!user) return res.status(401).json({ error: 'Credenciales invalidas' });
     const ok = await bcrypt.compare(password, user.hash);
     if (!ok) return res.status(401).json({ error: 'Credenciales invalidas' });
+    if (user.blockedAt) {
+      return res.status(403).json({ error: 'Tu cuenta fue bloqueada por uso indebido de BaweStudio. Si creés que es un error, escribinos y lo revisamos.' });
+    }
     const token = deps.signToken(user);
     res.json({ token, user: deps.publicUser(user) });
   });

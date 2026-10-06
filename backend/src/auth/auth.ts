@@ -36,6 +36,8 @@ export function createAuth(deps: AuthDeps) {
     try {
       const tokenUser = jwt.verify(token, deps.jwtSecret) as any;
       const dbUser = findUserById(tokenUser?.id);
+      // Cuenta bloqueada por uso indebido: el token deja de valer.
+      if (dbUser?.blockedAt) return null;
       return dbUser || null;
     } catch {
       return null;

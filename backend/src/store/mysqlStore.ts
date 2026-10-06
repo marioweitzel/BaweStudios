@@ -97,7 +97,9 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
         hash VARCHAR(255) NOT NULL,
         workspace_user_id VARCHAR(255) NULL,
         scope_disclaimer_accepted_at DATETIME(3) NULL,
-        security_notice_accepted_at DATETIME(3) NULL
+        security_notice_accepted_at DATETIME(3) NULL,
+        security_strikes INT NOT NULL DEFAULT 0,
+        blocked_at DATETIME(3) NULL
       )
     `);
 
@@ -227,6 +229,23 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
       await dbPool.query(`ALTER TABLE users ADD COLUMN security_notice_accepted_at DATETIME(3) NULL`);
     }
 
+    // Migracion incremental: intentos de uso indebido del chat (el LLM responde
+    // "Intento de hack") y bloqueo de cuenta al segundo intento.
+    const [strikesColumn] = await dbPool.query<RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'security_strikes'`
+    );
+    if (strikesColumn.length === 0) {
+      await dbPool.query(`ALTER TABLE users ADD COLUMN security_strikes INT NOT NULL DEFAULT 0`);
+    }
+    const [blockedColumn] = await dbPool.query<RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'blocked_at'`
+    );
+    if (blockedColumn.length === 0) {
+      await dbPool.query(`ALTER TABLE users ADD COLUMN blocked_at DATETIME(3) NULL`);
+    }
+
     // Migracion incremental: projects ya existia sin estas columnas en
     // instalaciones previas. last_activity_at se pisa en cada mensaje de
     // Cambios/Soporte y en cada acceso a preview/historial.pdf de un proyecto
@@ -303,7 +322,9 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
         hash: String(row.hash),
         workspace_user_id: row.workspace_user_id ? String(row.workspace_user_id) : undefined,
         scopeDisclaimerAcceptedAt: row.scope_disclaimer_accepted_at ? mysqlDateToIso(row.scope_disclaimer_accepted_at) : null,
-        securityNoticeAcceptedAt: row.security_notice_accepted_at ? mysqlDateToIso(row.security_notice_accepted_at) : null
+        securityNoticeAcceptedAt: row.security_notice_accepted_at ? mysqlDateToIso(row.security_notice_accepted_at) : null,
+        securityStrikes: Number(row.security_strikes || 0),
+        blockedAt: row.blocked_at ? mysqlDateToIso(row.blocked_at) : null
       })),
       projects: projectRows.map(row => ({
         id: String(row.id),
@@ -365,9 +386,9 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
 
       for (const user of snapshot.users) {
         await conn.query<ResultSetHeader>(
-          `INSERT INTO users (id,email,name,hash,workspace_user_id,scope_disclaimer_accepted_at,security_notice_accepted_at)
-           VALUES (?,?,?,?,?,?,?)
-           ON DUPLICATE KEY UPDATE email=VALUES(email), name=VALUES(name), hash=VALUES(hash), workspace_user_id=VALUES(workspace_user_id), scope_disclaimer_accepted_at=VALUES(scope_disclaimer_accepted_at), security_notice_accepted_at=VALUES(security_notice_accepted_at)`,
+          `INSERT INTO users (id,email,name,hash,workspace_user_id,scope_disclaimer_accepted_at,security_notice_accepted_at,security_strikes,blocked_at)
+           VALUES (?,?,?,?,?,?,?,?,?)
+           ON DUPLICATE KEY UPDATE email=VALUES(email), name=VALUES(name), hash=VALUES(hash), workspace_user_id=VALUES(workspace_user_id), scope_disclaimer_accepted_at=VALUES(scope_disclaimer_accepted_at), security_notice_accepted_at=VALUES(security_notice_accepted_at), security_strikes=VALUES(security_strikes), blocked_at=VALUES(blocked_at)`,
           [
             user.id,
             user.email,
@@ -375,7 +396,9 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
             user.hash,
             user.workspace_user_id || deps.workspaceUserId(user.id),
             user.scopeDisclaimerAcceptedAt ? isoToMysqlDate(user.scopeDisclaimerAcceptedAt) : null,
-            user.securityNoticeAcceptedAt ? isoToMysqlDate(user.securityNoticeAcceptedAt) : null
+            user.securityNoticeAcceptedAt ? isoToMysqlDate(user.securityNoticeAcceptedAt) : null,
+            Number(user.securityStrikes || 0),
+            user.blockedAt ? isoToMysqlDate(user.blockedAt) : null
           ]
         );
       }

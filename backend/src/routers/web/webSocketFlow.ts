@@ -25,6 +25,7 @@ import type { ExecutionRecord } from '../../services/executionStateService';
 import { debugPanel } from '../../utils/debugPanel';
 import { extractChatOptions, isFinalContract, isInvalidCommandResponse, isPartialContract } from '../../utils/contracts';
 import { clientSafeHostError } from '../../utils/hostErrors';
+import { CLIENT_GENERIC_NOTICE, containsInternalDetails, isGenericNoticeResponse, isHackAttemptResponse } from '../../utils/clientSafeText';
 import { makeSafeName, normalizeProjectName } from '../../utils/names';
 import { detectPendingMotorQueueWork } from '../../utils/projectFiles';
 import { normalizeProjectFamily } from '../projectFamilies';
@@ -154,6 +155,7 @@ type WebSocketFlowDeps = {
     attachment?: StoredChatAttachment
   ) => StoredChatHistory | null;
   setPendingQuestion: (historyId: string | null, userId: string | null | undefined, text: string) => StoredChatHistory | null;
+  registerSecurityStrike: (userId: string) => { strikes: number; blocked: boolean };
   startEditJob: (projectId: string, userId: string, reason: string) => void;
   suggestProjectName: (userId: string, projectName: string) => string;
   updateChatHistorySession: (
@@ -197,6 +199,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     setExecutionState,
     setPendingAnswer,
     setPendingQuestion,
+    registerSecurityStrike,
     startEditJob,
     suggestProjectName,
     updateChatHistorySession,
@@ -320,9 +323,62 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     return true;
   }
 
+  // El LLM respondio con el contrato "Intento de hack": el cliente le dio una
+  // orden en vez de datos de su proyecto. Se descarta su mensaje del historial,
+  // se cuenta el intento y se avisa al frontend (1ro: advertencia, 2do: bloqueo).
+  function handleHackAttempt() {
+    const history = activeChatHistoryId ? readDb().chatHistories.find(h => h.id === activeChatHistoryId) : null;
+    const attempted = String((history as any)?.pending_answer?.text || '').slice(0, 300);
+    updateChatHistoryTurn(activeChatHistoryId, socketUser?.id, { pending_answer: null });
+    hostBusy = false;
+    setExecutionState(safeProjectId, socketUser?.id, activeSessionId, 'IDLE', socket.id);
+    socket.emit('host:pending', { pending: false });
+    const result = socketUser?.id ? registerSecurityStrike(socketUser.id) : { strikes: 0, blocked: false };
+    recordHostTurnEvent({
+      projectId: safeProjectId,
+      userId: socketUser?.id,
+      sessionId: activeSessionId,
+      eventType: 'security.hack_attempt',
+      payload: { strikes: result.strikes, blocked: result.blocked, chatHistoryId: activeChatHistoryId, clientMessage: attempted }
+    });
+    console.warn(`[Security] Intento de hack: user=${socketUser?.id} strikes=${result.strikes} blocked=${result.blocked}`);
+    emitProjectUpdate(socket, safeProjectId, socketUser?.id);
+    if (result.blocked) {
+      socket.emit('security:blocked', {});
+      setTimeout(() => socket.disconnect(true), 500);
+    } else {
+      socket.emit('security:warning', { strikes: result.strikes });
+    }
+  }
+
   function emitCodexQuestion(rawText: string) {
     if (recoverCompletedInterview('respuesta_codex')) return;
+    if (isHackAttemptResponse(rawText)) {
+      handleHackAttempt();
+      return;
+    }
     const { cleanText: text, options } = extractChatOptions(rawText);
+    // Red de seguridad: al cliente solo llega pregunta y opciones. Si el texto
+    // trae algo interno (archivos, codigos de pregunta, modo del entorno) o es
+    // el aviso generico del motor, se reemplaza por el aviso generico y no se
+    // guarda en el historial. El original queda solo en el evento para diagnostico.
+    if (
+      isGenericNoticeResponse(text) ||
+      containsInternalDetails(text) ||
+      (options && options.items.some(item => containsInternalDetails(item)))
+    ) {
+      recordHostTurnEvent({
+        projectId: safeProjectId,
+        userId: socketUser?.id,
+        sessionId: activeSessionId,
+        eventType: 'host.client_text_blocked',
+        payload: { original: String(rawText || '').slice(0, 1000), chatHistoryId: activeChatHistoryId }
+      });
+      emitAgentNotice(CLIENT_GENERIC_NOTICE);
+      // Sin esto la pantalla queda en "Pensando..." (el estado del proyecto sigue RUNNING).
+      emitProjectUpdate(socket, safeProjectId, socketUser?.id);
+      return;
+    }
     recordHostTurnEvent({
       projectId: safeProjectId,
       userId: socketUser?.id,
@@ -905,6 +961,27 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
           supportError(message.text || 'Error en la sesión de soporte.');
           return;
         }
+        // Orden explicita del cliente al LLM ("Intento de hack") o texto con datos
+        // internos: igual criterio que en la entrevista (ver emitCodexQuestion).
+        if (isHackAttemptResponse(message.text)) {
+          handleHackAttempt();
+          return;
+        }
+        if (isGenericNoticeResponse(message.text) || containsInternalDetails(message.text)) {
+          recordHostTurnEvent({
+            projectId: safeProjectId,
+            userId: socketUser?.id,
+            sessionId: activeSessionId,
+            eventType: 'host.client_text_blocked',
+            payload: { original: String(message.text || '').slice(0, 1000), chatHistoryId: activeChatHistoryId }
+          });
+          hostBusy = false;
+          setExecutionState(safeProjectId, socketUser?.id, currentSessionId, 'IDLE', socket.id);
+          socket.emit('host:pending', { pending: false });
+          socket.emit('support-event', { type: 'support_reply', text: CLIENT_GENERIC_NOTICE, projectId: safeProjectId });
+          emitProjectUpdate(socket, safeProjectId, socketUser?.id);
+          return;
+        }
         hostBusy = false;
         setExecutionState(safeProjectId, socketUser?.id, currentSessionId, 'IDLE', socket.id);
         socket.emit('host:pending', { pending: false });
@@ -1104,6 +1181,27 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
         });
         if (message.type === 'error') {
           editSessionError(message.text || 'Error en la sesión de cambios.');
+          return;
+        }
+        // Orden explicita del cliente al LLM ("Intento de hack") o texto con datos
+        // internos: igual criterio que en la entrevista (ver emitCodexQuestion).
+        if (isHackAttemptResponse(message.text)) {
+          handleHackAttempt();
+          return;
+        }
+        if (isGenericNoticeResponse(message.text) || containsInternalDetails(message.text)) {
+          recordHostTurnEvent({
+            projectId: safeProjectId,
+            userId: socketUser?.id,
+            sessionId: activeSessionId,
+            eventType: 'host.client_text_blocked',
+            payload: { original: String(message.text || '').slice(0, 1000), chatHistoryId: activeChatHistoryId }
+          });
+          hostBusy = false;
+          setExecutionState(safeProjectId, socketUser?.id, currentSessionId, 'IDLE', socket.id);
+          socket.emit('host:pending', { pending: false });
+          socket.emit('edit-event', { type: 'edit_reply', text: CLIENT_GENERIC_NOTICE, projectId: safeProjectId, queueReady: false });
+          emitProjectUpdate(socket, safeProjectId, socketUser?.id);
           return;
         }
         hostBusy = false;

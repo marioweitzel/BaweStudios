@@ -10,7 +10,8 @@
     deliveryModal: '/src/components/DeliveryModal.html',
     previewModal: '/src/components/PreviewModal.html',
     scopeDisclaimerModal: '/src/components/ScopeDisclaimerModal.html',
-    securityNoticeModal: '/src/components/SecurityNoticeModal.html'
+    securityNoticeModal: '/src/components/SecurityNoticeModal.html',
+    hackWarningModal: '/src/components/HackWarningModal.html'
   };
 
   function loadScript(src) {
@@ -43,7 +44,8 @@
       .replace('{{PROJECTS_VIEW}}', loaded.projects)
       .replace('{{CHAT_VIEW}}', loaded.chat);
 
-    root.innerHTML = `${loaded.auth}\n${dashboard}\n${loaded.deleteModal}\n${loaded.deliveryModal}\n${loaded.previewModal}\n${loaded.scopeDisclaimerModal}\n${loaded.securityNoticeModal}`;
+    root.innerHTML = `${loaded.auth}\n${dashboard}\n${loaded.deleteModal}\n${loaded.deliveryModal}\n${loaded.previewModal}\n${loaded.scopeDisclaimerModal}\n${loaded.securityNoticeModal}
+${loaded.hackWarningModal}`;
 
     await loadScript('/src/state/appState.js');
     await loadScript('/src/api/client.js');
@@ -53,6 +55,7 @@
     await loadScript('/src/components/PreviewModal.js');
     await loadScript('/src/components/ScopeDisclaimerModal.js');
     await loadScript('/src/components/SecurityNoticeModal.js');
+    await loadScript('/src/components/HackWarningModal.js');
     await loadScript('/src/services/appShell.js');
     await loadScript('/src/services/hostSelector.js');
     await loadScript('/src/components/ProjectCard.js');

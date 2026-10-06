@@ -105,6 +105,22 @@ socket.on('host:stop-error', function() {
     appendChatMessage('agent','No se pudo detener la generación en este momento.',false);
 });
 
+socket.on('security:warning', function() {
+  setPendingBubble(false);
+  showHackWarningModal();
+});
+
+socket.on('security:blocked', function() {
+  setPendingBubble(false);
+  showAccountBlockedModal().then(function() {
+    window.BaweState.clearAuthSession();
+    token=null;currentUser=null;currentProjectId=null;allProjects=[];
+    if(window.BaweSocket){window.BaweSocket.disconnect();}
+    document.getElementById('app-dashboard').style.display='none';
+    document.getElementById('app-landing').style.display='';
+  });
+});
+
 socket.on('auth:expired', function(data) {
   window.BaweState.clearAuthSession();
   token=null;currentUser=null;currentProjectId=null;allProjects=[];
