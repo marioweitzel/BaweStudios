@@ -93,12 +93,11 @@ export class CodexHostAdapter implements IHostAdapter {
         slog(`[CODEX HOST] respuesta ignorada para sesion detenida: ${sessionId}`);
         return;
       }
-      slog(`PRUEBA5 PARSED=${responseText ? `"${responseText.slice(0, 200)}"` : 'null'}`);
 
       if (!responseText) {
         const errMsg = 'Bridge respondio sin texto parseable';
         const errorMessage = { sessionId, type: 'error', text: GENERIC_HOST_ERROR_MESSAGE };
-        slog(`PRUEBA6 socket.emit('error') payload=${JSON.stringify(errorMessage).slice(0, 200)}`);
+        slog(`[CODEX HOST] ${errMsg}: ${sessionId}`);
         this.errorCallbacks.forEach(cb => cb(sessionId, new Error(errMsg)));
         this.messageCallbacks.forEach(cb => cb(sessionId, errorMessage));
         return;
@@ -124,11 +123,9 @@ export class CodexHostAdapter implements IHostAdapter {
       const responseMessage: Record<string, unknown> = { sessionId, type: 'question', id: 'codex-response', text: responseText };
       if (editQueueReady) responseMessage.editQueueReady = true;
       if (extensionQueueReady) responseMessage.extensionQueueReady = true;
-      slog(`PRUEBA6 messageCallbacks.length=${this.messageCallbacks.length}`);
-      slog(`PRUEBA6 calling messageCallbacks with payload type=question text="${responseText.slice(0, 200)}"`);
       console.log(`[BACKEND -> FRONTEND] respuesta enviada: ${JSON.stringify(responseMessage).slice(0, 300)}`);
       this.messageCallbacks.forEach(cb => cb(sessionId, responseMessage));
-      slog(`PRUEBA6 DONE - messageCallbacks called`);
+      slog(`[CODEX HOST] respuesta entregada: sesion=${sessionId} oyentes=${this.messageCallbacks.length}`);
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       if (!this.activeSessions.has(sessionId) || this.stoppingSessions.has(sessionId)) {
