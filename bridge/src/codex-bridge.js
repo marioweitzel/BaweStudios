@@ -161,10 +161,38 @@ function extractCodexOutput(stdout) {
   return { text, threadId };
 }
 
-function buildCodexArgs(baseArgs, message, threadId) {
+// Perfil de permisos (lista blanca) de Codex, 7/10/2026. 'open' = comportamiento historico.
+// 'interview' = perfil con nombre: lectura general (el sandbox de Windows exige acceso de lectura
+// a :root), escritura SOLO en la carpeta del usuario, sin red y con secretos negados.
+// Solo puede ENDURECERSE: el perfil del entorno es el piso y el pedido solo puede subirlo.
+const CODEX_PERMISSION_PROFILE = String(process.env.CODEX_PERMISSION_PROFILE || 'open').toLowerCase();
+function resolveCodexPermissionProfile(requested) {
+  return CODEX_PERMISSION_PROFILE === 'interview' || requested === 'interview' ? 'interview' : 'open';
+}
+const USER_DIR_PATTERN = /^user_\d{1,20}$/;
+function interviewPermissionArgs(workspaceUser) {
+  const writeEntry = USER_DIR_PATTERN.test(String(workspaceUser || '')) ? `,${JSON.stringify(`${workspaceUser}/**`)}="write"` : '';
+  const secrets = ['~/.codex', '~/.ssh', '~/.claude', '~/.aws', path.join(__dirname, '..', '..', '.env')].map(p => p.split('\\').join('/'));
+  const entries = [
+    '":root"="read"',
+    `":workspace_roots"={"."="read"${writeEntry}}`,
+    ...secrets.map(p => `${JSON.stringify(p)}="deny"`)
+  ];
+  return [
+    '-c', 'default_permissions="interview"',
+    '-c', `permissions.interview.filesystem={${entries.join(',')}}`,
+    '-c', 'permissions.interview.network.enabled=false'
+  ];
+}
+
+function buildCodexArgs(baseArgs, message, threadId, profile, workspaceUser) {
   const args = Array.isArray(baseArgs) && baseArgs.length > 0 ? baseArgs : DEFAULT_ARGS;
   const options = (args[0] === 'exec' ? args.slice(1) : args)
     .filter(arg => arg !== '--ephemeral');
+
+  if (resolveCodexPermissionProfile(profile) === 'interview') {
+    options.push(...interviewPermissionArgs(workspaceUser));
+  }
 
   if (threadId) {
     return ['exec', 'resume', ...options, threadId, message];
@@ -173,7 +201,7 @@ function buildCodexArgs(baseArgs, message, threadId) {
   return ['exec', ...options, message];
 }
 
-function runCodex({ sessionId, message, cwd, command, args, timeoutMs, rememberSession }) {
+function runCodex({ sessionId, message, cwd, command, args, timeoutMs, rememberSession, permissionProfile, workspaceUser }) {
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
     const startedAtIso = new Date(startedAt).toISOString();
@@ -185,7 +213,7 @@ function runCodex({ sessionId, message, cwd, command, args, timeoutMs, rememberS
     const storedSession = sessionId && shouldRememberSession ? codexSessions.get(sessionId) : null;
     const codexThreadId = storedSession?.threadId || null;
     const executable = command || 'codex';
-    const finalArgs = buildCodexArgs(args, message, codexThreadId);
+    const finalArgs = buildCodexArgs(args, message, codexThreadId, permissionProfile, workspaceUser);
     const effectiveTimeoutMs = Number(timeoutMs || 120000);
 
     if (!fs.existsSync(workingDir)) {
@@ -208,7 +236,9 @@ function runCodex({ sessionId, message, cwd, command, args, timeoutMs, rememberS
       pid: null,
       mode: codexThreadId ? 'resume' : 'new',
       codexThreadId: codexThreadId || null,
-      rememberSession: shouldRememberSession
+      rememberSession: shouldRememberSession,
+      permissionProfile: resolveCodexPermissionProfile(permissionProfile),
+      workspaceUser: workspaceUser || null
     });
 
     const proc = spawn(executable, finalArgs, {
@@ -226,7 +256,9 @@ function runCodex({ sessionId, message, cwd, command, args, timeoutMs, rememberS
       cwd: workingDir,
       mode: codexThreadId ? 'resume' : 'new',
       codexThreadId: codexThreadId || null,
-      rememberSession: shouldRememberSession
+      rememberSession: shouldRememberSession,
+      permissionProfile: resolveCodexPermissionProfile(permissionProfile),
+      workspaceUser: workspaceUser || null
     });
 
     let stdout = '';

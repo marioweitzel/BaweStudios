@@ -26,7 +26,7 @@ import { debugPanel } from '../../utils/debugPanel';
 import { extractChatOptions, isFinalContract, isInvalidCommandResponse, isPartialContract } from '../../utils/contracts';
 import { clientSafeHostError } from '../../utils/hostErrors';
 import { CLIENT_GENERIC_NOTICE, containsInternalDetails, isGenericNoticeResponse, isHackAttemptResponse } from '../../utils/clientSafeText';
-import { makeSafeName, normalizeProjectName } from '../../utils/names';
+import { makeSafeName, normalizeProjectName, workspaceUserId } from '../../utils/names';
 import { detectPendingMotorQueueWork } from '../../utils/projectFiles';
 import { normalizeProjectFamily } from '../projectFamilies';
 import {
@@ -261,9 +261,9 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
 
   // Opciones de envio segun la fase: las sesiones de soporte y de cambios usan sus marcadores
   // (perfil por defecto del bridge); la entrevista pide el perfil estricto (lista blanca).
-  function activeSessionSendOptions(): { markers?: { start: string; end: string }; permissionProfile?: 'interview' } {
+  function activeSessionSendOptions(): { markers?: { start: string; end: string }; permissionProfile?: 'interview'; workspaceUser?: string } {
     const markers = activeSessionMarkers();
-    return markers ? { markers } : { permissionProfile: 'interview' };
+    return markers ? { markers } : { permissionProfile: 'interview', workspaceUser: workspaceUserId(socketUser.id) };
   }
 
   function buildOutgoingUserMessage(userMessage: string, attachment?: StoredChatAttachment) {
@@ -872,14 +872,14 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
       if (existingProject && userMessage.trim().toLowerCase() === 'continuar') {
         const command = buildWebContinuationCommand(existingProject);
         recordHostTurnEvent({ projectId: safeProjectId, userId: socketUser.id, sessionId, eventType: 'host.send', payload: { message: command } });
-        await hostManager.send(sessionId, command, { permissionProfile: 'interview' });
+        await hostManager.send(sessionId, command, { permissionProfile: 'interview', workspaceUser: workspaceUserId(socketUser.id) });
       } else if (!existingProject) {
         const command = buildWebStartCommand(socketUser.id);
         recordHostTurnEvent({ projectId: safeProjectId, userId: socketUser.id, sessionId, eventType: 'host.send', payload: { message: command } });
-        await hostManager.send(sessionId, command, { permissionProfile: 'interview' });
+        await hostManager.send(sessionId, command, { permissionProfile: 'interview', workspaceUser: workspaceUserId(socketUser.id) });
       } else {
         recordHostTurnEvent({ projectId: safeProjectId, userId: socketUser.id, sessionId, eventType: 'host.send', payload: { message: userMessage } });
-        await hostManager.send(sessionId, userMessage, { permissionProfile: 'interview' });
+        await hostManager.send(sessionId, userMessage, { permissionProfile: 'interview', workspaceUser: workspaceUserId(socketUser.id) });
       }
 
       console.log(`[Socket] Sesión iniciada: ${safeProjectId}`);

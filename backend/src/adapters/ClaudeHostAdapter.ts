@@ -86,7 +86,7 @@ export class ClaudeHostAdapter implements IHostAdapter {
     slog(`[CLAUDE HOST] mensaje recibido desde chat: ${message}`);
 
     try {
-      const response = await this.callBridge(sessionId, message, options?.permissionProfile);
+      const response = await this.callBridge(sessionId, message, options?.permissionProfile, options?.workspaceUser);
       let responseText = response.text;
       this.lastPid = response.pid;
       if (!this.activeSessions.has(sessionId) || this.stoppingSessions.has(sessionId)) {
@@ -172,7 +172,7 @@ export class ClaudeHostAdapter implements IHostAdapter {
     return url.toString();
   }
 
-  private async callBridge(sessionId: string, prompt: string, permissionProfile?: HostSendOptions['permissionProfile']): Promise<{ text: string | null; pid: number | null }> {
+  private async callBridge(sessionId: string, prompt: string, permissionProfile?: HostSendOptions['permissionProfile'], workspaceUser?: string): Promise<{ text: string | null; pid: number | null }> {
     const controller = new AbortController();
     const timeoutMs = Math.max(this.config.timeoutMs || 600000, 600000);
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -188,6 +188,7 @@ export class ClaudeHostAdapter implements IHostAdapter {
           sessionId,
           message: prompt,
           ...(permissionProfile ? { permissionProfile } : {}),
+          ...(workspaceUser ? { workspaceUser } : {}),
           ...(this.config.cwd ? { cwd: this.config.cwd } : {}),
           command: this.config.command,
           timeoutMs

@@ -14,6 +14,8 @@ export type HostSendOptions = {
   // 'interview' = estricto (sin shell ni red; escribe solo en carpetas de usuario).
   // Ausente = el bridge usa su perfil por defecto. Solo puede ENDURECER, nunca aflojar.
   permissionProfile?: 'interview' | 'open';
+  // Carpeta de usuario del cliente (user_<id>): unico lugar donde el perfil estricto deja escribir.
+  workspaceUser?: string;
 };
 
 export interface IHostAdapter {
