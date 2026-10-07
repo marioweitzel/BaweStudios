@@ -8,6 +8,14 @@
  * La comunicación es siempre mediante JSON estructurado por línea.
  */
 
+export type HostSendOptions = {
+  markers?: { start: string; end: string };
+  // Perfil de permisos que el bridge aplica a la CLI en este pedido (lista blanca).
+  // 'interview' = estricto (sin shell ni red; escribe solo en carpetas de usuario).
+  // Ausente = el bridge usa su perfil por defecto. Solo puede ENDURECER, nunca aflojar.
+  permissionProfile?: 'interview' | 'open';
+};
+
 export interface IHostAdapter {
   /**
    * start(sessionId) — Inicia el proceso huésped.
@@ -35,7 +43,7 @@ export interface IHostAdapter {
    *   de cambios.
    * @throws si la sesión no existe o el proceso está muerto
    */
-  send(sessionId: string, message: string, options?: { markers?: { start: string; end: string } }): Promise<void>;
+  send(sessionId: string, message: string, options?: HostSendOptions): Promise<void>;
 
   /**
    * stop(sessionId) — Termina el proceso huésped.

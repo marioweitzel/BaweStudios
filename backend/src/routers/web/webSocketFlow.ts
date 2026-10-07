@@ -259,6 +259,13 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     return undefined;
   }
 
+  // Opciones de envio segun la fase: las sesiones de soporte y de cambios usan sus marcadores
+  // (perfil por defecto del bridge); la entrevista pide el perfil estricto (lista blanca).
+  function activeSessionSendOptions(): { markers?: { start: string; end: string }; permissionProfile?: 'interview' } {
+    const markers = activeSessionMarkers();
+    return markers ? { markers } : { permissionProfile: 'interview' };
+  }
+
   function buildOutgoingUserMessage(userMessage: string, attachment?: StoredChatAttachment) {
     return activeSessionIsEdit
       ? appendEditAttachmentToPrompt(userMessage, attachment)
@@ -865,14 +872,14 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
       if (existingProject && userMessage.trim().toLowerCase() === 'continuar') {
         const command = buildWebContinuationCommand(existingProject);
         recordHostTurnEvent({ projectId: safeProjectId, userId: socketUser.id, sessionId, eventType: 'host.send', payload: { message: command } });
-        await hostManager.send(sessionId, command);
+        await hostManager.send(sessionId, command, { permissionProfile: 'interview' });
       } else if (!existingProject) {
         const command = buildWebStartCommand(socketUser.id);
         recordHostTurnEvent({ projectId: safeProjectId, userId: socketUser.id, sessionId, eventType: 'host.send', payload: { message: command } });
-        await hostManager.send(sessionId, command);
+        await hostManager.send(sessionId, command, { permissionProfile: 'interview' });
       } else {
         recordHostTurnEvent({ projectId: safeProjectId, userId: socketUser.id, sessionId, eventType: 'host.send', payload: { message: userMessage } });
-        await hostManager.send(sessionId, userMessage);
+        await hostManager.send(sessionId, userMessage, { permissionProfile: 'interview' });
       }
 
       console.log(`[Socket] Sesión iniciada: ${safeProjectId}`);
@@ -1378,7 +1385,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
         eventType: 'host.send',
         payload: { message: codexMessage.slice(0, 1000), chatHistoryId: activeChatHistoryId, attachment: attachment ? { filename: attachment.filename, projectPath: attachment.projectPath } : null }
       });
-      await hostManager.send(activeSessionId, codexMessage, { markers: activeSessionMarkers() });
+      await hostManager.send(activeSessionId, codexMessage, activeSessionSendOptions());
       socket.emit('reply-saved', { ok: true });
     } catch (err) {
       console.error(`[Socket] Error enviando reply: ${err}`);
@@ -1454,7 +1461,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
           eventType: 'host.send',
           payload: { message: continuationCommand, chatHistoryId: project.chat_history_id || activeChatHistoryId }
         });
-        await hostManager.send(activeSessionId, continuationCommand);
+        await hostManager.send(activeSessionId, continuationCommand, activeSessionSendOptions());
       };
       if (!activeSessionId) {
         await beginProject({ initialMessage: 'continuar', projectId: project.id });
@@ -1493,7 +1500,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
         eventType: 'host.send',
         payload: { message: codexMessage.slice(0, 1000), chatHistoryId: activeChatHistoryId, attachment: attachment ? { filename: attachment.filename, projectPath: attachment.projectPath } : null }
       });
-      await hostManager.send(activeSessionId, codexMessage, { markers: activeSessionMarkers() });
+      await hostManager.send(activeSessionId, codexMessage, activeSessionSendOptions());
       socket.emit('reply-saved', { ok: true });
     }
   });

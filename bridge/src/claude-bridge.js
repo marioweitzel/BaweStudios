@@ -136,7 +136,13 @@ function extractClaudeOutput(stdout) {
   }
 }
 
-function buildClaudeArgs(message, claudeSessionId) {
+// Perfil efectivo: SOLO PUEDE ENDURECERSE. El perfil del entorno (CLAUDE_PERMISSION_PROFILE)
+// es el piso; el pedido del backend puede subir a 'interview' pero nunca bajar a 'open'.
+function resolvePermissionProfile(requested) {
+  return PERMISSION_PROFILE === 'interview' || requested === 'interview' ? 'interview' : 'open';
+}
+
+function buildClaudeArgs(message, claudeSessionId, requestedProfile) {
   // --dangerously-skip-permissions: el bridge lanza Claude con stdin
   // cerrado (stdio: ['ignore', ...]), asi que no hay forma de aprobar un
   // prompt de permisos interactivo. Sin este flag, cualquier accion que
@@ -161,7 +167,7 @@ function buildClaudeArgs(message, claudeSessionId) {
   // not delegate development outside the single LLM vertical development
   // flow.") -- esto la hace cumplir tecnicamente en vez de depender de que
   // el modelo la respete solo.
-  const permissionArgs = PERMISSION_PROFILE === 'interview'
+  const permissionArgs = resolvePermissionProfile(requestedProfile) === 'interview'
     ? ['--permission-mode', 'dontAsk', '--settings', JSON.stringify(INTERVIEW_SETTINGS)]
     : ['--dangerously-skip-permissions'];
   const args = ['-p', message, '--output-format', 'json', ...permissionArgs, '--disallowed-tools', 'Agent'];
@@ -174,7 +180,7 @@ function buildClaudeArgs(message, claudeSessionId) {
   return args;
 }
 
-function runClaude({ sessionId, message, cwd, command, timeoutMs, rememberSession }) {
+function runClaude({ sessionId, message, cwd, command, timeoutMs, rememberSession, permissionProfile }) {
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
     const startedAtIso = new Date(startedAt).toISOString();
@@ -186,7 +192,7 @@ function runClaude({ sessionId, message, cwd, command, timeoutMs, rememberSessio
     const storedSession = sessionId && shouldRememberSession ? claudeSessions.get(sessionId) : null;
     const claudeSessionId = storedSession?.claudeSessionId || null;
     const executable = command || 'claude';
-    const finalArgs = buildClaudeArgs(message, claudeSessionId);
+    const finalArgs = buildClaudeArgs(message, claudeSessionId, permissionProfile);
     const effectiveTimeoutMs = Number(timeoutMs || 120000);
 
     if (!fs.existsSync(workingDir)) {
@@ -209,7 +215,8 @@ function runClaude({ sessionId, message, cwd, command, timeoutMs, rememberSessio
       pid: null,
       mode: claudeSessionId ? 'resume' : 'new',
       claudeSessionId: claudeSessionId || null,
-      rememberSession: shouldRememberSession
+      rememberSession: shouldRememberSession,
+      permissionProfile: resolvePermissionProfile(permissionProfile)
     });
 
     const proc = spawn(executable, finalArgs, {
@@ -227,7 +234,8 @@ function runClaude({ sessionId, message, cwd, command, timeoutMs, rememberSessio
       cwd: workingDir,
       mode: claudeSessionId ? 'resume' : 'new',
       claudeSessionId: claudeSessionId || null,
-      rememberSession: shouldRememberSession
+      rememberSession: shouldRememberSession,
+      permissionProfile: resolvePermissionProfile(permissionProfile)
     });
 
     let stdout = '';
@@ -478,7 +486,8 @@ const server = http.createServer(async (req, res) => {
         claudeSessionId: payload.rememberSession !== false && payload.sessionId && claudeSessions.has(payload.sessionId)
           ? claudeSessions.get(payload.sessionId).claudeSessionId
           : null,
-        rememberSession: payload.rememberSession !== false
+        rememberSession: payload.rememberSession !== false,
+        permissionProfile: resolvePermissionProfile(payload.permissionProfile)
       });
 
       const result = await runClaude(payload);

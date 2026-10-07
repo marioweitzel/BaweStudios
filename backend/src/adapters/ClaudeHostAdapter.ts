@@ -4,7 +4,7 @@
  * mismo contrato IHostAdapter, no modifica ni depende de CodexHostAdapter.
  */
 
-import { IHostAdapter } from './IHostAdapter';
+import { IHostAdapter, HostSendOptions } from './IHostAdapter';
 import * as path from 'path';
 import * as fs from 'fs';
 import { extractMarkedResponse, hasEditQueueReadySignal, hasExtensionQueueReadySignal } from '../utils/contracts';
@@ -78,7 +78,7 @@ export class ClaudeHostAdapter implements IHostAdapter {
     console.log(`[CLAUDE HOST] sesion iniciada: ${sessionId}`);
   }
 
-  async send(sessionId: string, message: string, options?: { markers?: { start: string; end: string } }): Promise<void> {
+  async send(sessionId: string, message: string, options?: HostSendOptions): Promise<void> {
     if (!this.activeSessions.has(sessionId)) {
       throw new Error(`[CLAUDE HOST] sesion no activa: ${sessionId}`);
     }
@@ -86,7 +86,7 @@ export class ClaudeHostAdapter implements IHostAdapter {
     slog(`[CLAUDE HOST] mensaje recibido desde chat: ${message}`);
 
     try {
-      const response = await this.callBridge(sessionId, message);
+      const response = await this.callBridge(sessionId, message, options?.permissionProfile);
       let responseText = response.text;
       this.lastPid = response.pid;
       if (!this.activeSessions.has(sessionId) || this.stoppingSessions.has(sessionId)) {
@@ -172,7 +172,7 @@ export class ClaudeHostAdapter implements IHostAdapter {
     return url.toString();
   }
 
-  private async callBridge(sessionId: string, prompt: string): Promise<{ text: string | null; pid: number | null }> {
+  private async callBridge(sessionId: string, prompt: string, permissionProfile?: HostSendOptions['permissionProfile']): Promise<{ text: string | null; pid: number | null }> {
     const controller = new AbortController();
     const timeoutMs = Math.max(this.config.timeoutMs || 600000, 600000);
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -187,6 +187,7 @@ export class ClaudeHostAdapter implements IHostAdapter {
         body: JSON.stringify({
           sessionId,
           message: prompt,
+          ...(permissionProfile ? { permissionProfile } : {}),
           ...(this.config.cwd ? { cwd: this.config.cwd } : {}),
           command: this.config.command,
           timeoutMs

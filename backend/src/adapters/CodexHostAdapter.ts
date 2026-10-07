@@ -3,7 +3,7 @@
  * Windows bridge outside Docker.
  */
 
-import { IHostAdapter } from './IHostAdapter';
+import { IHostAdapter, HostSendOptions } from './IHostAdapter';
 import * as path from 'path';
 import * as fs from 'fs';
 import { extractMarkedResponse, hasEditQueueReadySignal, hasExtensionQueueReadySignal } from '../utils/contracts';
@@ -78,7 +78,7 @@ export class CodexHostAdapter implements IHostAdapter {
     console.log(`[CODEX HOST] sesion iniciada: ${sessionId}`);
   }
 
-  async send(sessionId: string, message: string, options?: { markers?: { start: string; end: string } }): Promise<void> {
+  async send(sessionId: string, message: string, options?: HostSendOptions): Promise<void> {
     if (!this.activeSessions.has(sessionId)) {
       throw new Error(`[CODEX HOST] sesion no activa: ${sessionId}`);
     }
@@ -86,7 +86,7 @@ export class CodexHostAdapter implements IHostAdapter {
     slog(`[CODEX HOST] mensaje recibido desde chat: ${message}`);
 
     try {
-      const response = await this.callBridge(sessionId, message);
+      const response = await this.callBridge(sessionId, message, options?.permissionProfile);
       let responseText = response.text;
       this.lastPid = response.pid;
       if (!this.activeSessions.has(sessionId) || this.stoppingSessions.has(sessionId)) {
@@ -174,7 +174,7 @@ export class CodexHostAdapter implements IHostAdapter {
     return url.toString();
   }
 
-  private async callBridge(sessionId: string, prompt: string): Promise<{ text: string | null; pid: number | null }> {
+  private async callBridge(sessionId: string, prompt: string, permissionProfile?: HostSendOptions['permissionProfile']): Promise<{ text: string | null; pid: number | null }> {
     const controller = new AbortController();
     const timeoutMs = Math.max(this.config.timeoutMs || 600000, 600000);
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -189,6 +189,7 @@ export class CodexHostAdapter implements IHostAdapter {
         body: JSON.stringify({
           sessionId,
           message: prompt,
+          ...(permissionProfile ? { permissionProfile } : {}),
           ...(this.config.cwd ? { cwd: this.config.cwd } : {}),
           command: this.config.command,
           args: this.config.args || [],

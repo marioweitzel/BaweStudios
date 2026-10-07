@@ -8,7 +8,7 @@
  * index.ts, que hoy instancia todo de forma sincrona.
  */
 
-import { IHostAdapter } from './IHostAdapter';
+import { IHostAdapter, HostSendOptions } from './IHostAdapter';
 import { CodexHostAdapter } from './CodexHostAdapter';
 import { ClaudeHostAdapter } from './ClaudeHostAdapter';
 import { DEFAULT_ADAPTER_HEALTH_URLS, resolveHealthyAdapter, parseAdapterPreference } from '../host-runtimes/HostRuntimeDetector';
@@ -62,7 +62,7 @@ export class AutoHostAdapter implements IHostAdapter {
     await delegate.start(sessionId);
   }
 
-  async send(sessionId: string, message: string, options?: { markers?: { start: string; end: string } }): Promise<void> {
+  async send(sessionId: string, message: string, options?: HostSendOptions): Promise<void> {
     const delegate = await this.resolveDelegate();
     await delegate.send(sessionId, message, options);
   }

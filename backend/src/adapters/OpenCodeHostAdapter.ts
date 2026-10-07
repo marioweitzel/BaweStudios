@@ -5,7 +5,7 @@
  * modifica ni depende de ninguno de los dos.
  */
 
-import { IHostAdapter } from './IHostAdapter';
+import { IHostAdapter, HostSendOptions } from './IHostAdapter';
 import * as path from 'path';
 import * as fs from 'fs';
 import { extractMarkedResponse, hasEditQueueReadySignal, hasExtensionQueueReadySignal } from '../utils/contracts';
@@ -79,7 +79,7 @@ export class OpenCodeHostAdapter implements IHostAdapter {
     console.log(`[OPENCODE HOST] sesion iniciada: ${sessionId}`);
   }
 
-  async send(sessionId: string, message: string, options?: { markers?: { start: string; end: string } }): Promise<void> {
+  async send(sessionId: string, message: string, options?: HostSendOptions): Promise<void> {
     if (!this.activeSessions.has(sessionId)) {
       throw new Error(`[OPENCODE HOST] sesion no activa: ${sessionId}`);
     }

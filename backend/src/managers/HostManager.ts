@@ -6,7 +6,7 @@
  * Emite eventos que escucha el SocketHandler para retransmitir al frontend.
  */
 
-import { IHostAdapter } from '../adapters/IHostAdapter';
+import { IHostAdapter, HostSendOptions } from '../adapters/IHostAdapter';
 import { createAdapter } from '../adapters/HostAdapterFactory';
 import { EventEmitter } from 'events';
 
@@ -93,7 +93,7 @@ export class HostManager extends EventEmitter {
    * @param sessionId — ID de la sesión
    * @param message — Texto del mensaje
    */
-  async send(sessionId: string, message: string, options?: { markers?: { start: string; end: string } }): Promise<void> {
+  async send(sessionId: string, message: string, options?: HostSendOptions): Promise<void> {
     if (!this.activeSessionId || this.activeSessionId !== sessionId) {
       throw new Error(`Session not active: ${sessionId}`);
     }
