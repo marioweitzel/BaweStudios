@@ -17,6 +17,19 @@ const { requireAuth, readEnvVar } = require('./bridge-auth');
 // distintos aunque la configuracion sea igual. Vacio = no pasa --model.
 const CLAUDE_MODEL = readEnvVar('CLAUDE_MODEL');
 
+// Perfil de permisos (lista blanca). 'open' = comportamiento historico
+// (--dangerously-skip-permissions: sin limites). 'interview' = modo estricto
+// para la entrevista con el cliente: sin shell ni red; lee el motor y los
+// proyectos y escribe solo dentro de las carpetas de usuario. Se agrega por
+// la prueba de inyeccion del 6-7/10/2026 (el LLM obedecia ordenes del cliente).
+const PERMISSION_PROFILE = (readEnvVar('CLAUDE_PERMISSION_PROFILE') || 'open').toLowerCase();
+const INTERVIEW_SETTINGS = {
+  permissions: {
+    allow: ['Read(.agents/**)', 'Read(user_*/**)', 'Edit(user_*/**)'],
+    deny: ['Bash', 'PowerShell', 'WebFetch', 'WebSearch', 'Edit(.agents/**)']
+  }
+};
+
 const PORT = Number(process.env.CLAUDE_BRIDGE_PORT || 5001);
 // Variante Linux: sin instalacion fija, se autoubica igual que BRIDGE_LOG_PATH
 // unas lineas mas abajo (mismo patron, ya validado en el codebase).
@@ -148,7 +161,10 @@ function buildClaudeArgs(message, claudeSessionId) {
   // not delegate development outside the single LLM vertical development
   // flow.") -- esto la hace cumplir tecnicamente en vez de depender de que
   // el modelo la respete solo.
-  const args = ['-p', message, '--output-format', 'json', '--dangerously-skip-permissions', '--disallowed-tools', 'Agent'];
+  const permissionArgs = PERMISSION_PROFILE === 'interview'
+    ? ['--permission-mode', 'dontAsk', '--settings', JSON.stringify(INTERVIEW_SETTINGS)]
+    : ['--dangerously-skip-permissions'];
+  const args = ['-p', message, '--output-format', 'json', ...permissionArgs, '--disallowed-tools', 'Agent'];
   if (CLAUDE_MODEL) {
     args.push('--model', CLAUDE_MODEL);
   }
