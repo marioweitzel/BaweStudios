@@ -23,12 +23,18 @@ const CLAUDE_MODEL = readEnvVar('CLAUDE_MODEL');
 // proyectos y escribe solo dentro de las carpetas de usuario. Se agrega por
 // la prueba de inyeccion del 6-7/10/2026 (el LLM obedecia ordenes del cliente).
 const PERMISSION_PROFILE = (readEnvVar('CLAUDE_PERMISSION_PROFILE') || 'open').toLowerCase();
-const INTERVIEW_SETTINGS = {
-  permissions: {
-    allow: ['Read(.agents/**)', 'Read(user_*/**)', 'Edit(user_*/**)'],
-    deny: ['Bash', 'PowerShell', 'WebFetch', 'WebSearch', 'Edit(.agents/**)']
-  }
-};
+// Con workspaceUser valido (user_<id>) el alcance es la carpeta exacta del
+// cliente; sin el, queda el comodin user_* (comportamiento previo).
+const USER_DIR_PATTERN = /^user_\d{1,20}$/;
+function interviewSettings(workspaceUser) {
+  const userDir = USER_DIR_PATTERN.test(String(workspaceUser || '')) ? workspaceUser : 'user_*';
+  return {
+    permissions: {
+      allow: ['Read(.agents/**)', `Read(${userDir}/**)`, `Edit(${userDir}/**)`],
+      deny: ['Bash', 'PowerShell', 'WebFetch', 'WebSearch', 'Edit(.agents/**)']
+    }
+  };
+}
 
 const PORT = Number(process.env.CLAUDE_BRIDGE_PORT || 5001);
 // Variante Linux: sin instalacion fija, se autoubica igual que BRIDGE_LOG_PATH
@@ -142,7 +148,7 @@ function resolvePermissionProfile(requested) {
   return PERMISSION_PROFILE === 'interview' || requested === 'interview' ? 'interview' : 'open';
 }
 
-function buildClaudeArgs(message, claudeSessionId, requestedProfile) {
+function buildClaudeArgs(message, claudeSessionId, requestedProfile, workspaceUser) {
   // --dangerously-skip-permissions: el bridge lanza Claude con stdin
   // cerrado (stdio: ['ignore', ...]), asi que no hay forma de aprobar un
   // prompt de permisos interactivo. Sin este flag, cualquier accion que
@@ -168,7 +174,7 @@ function buildClaudeArgs(message, claudeSessionId, requestedProfile) {
   // flow.") -- esto la hace cumplir tecnicamente en vez de depender de que
   // el modelo la respete solo.
   const permissionArgs = resolvePermissionProfile(requestedProfile) === 'interview'
-    ? ['--permission-mode', 'dontAsk', '--settings', JSON.stringify(INTERVIEW_SETTINGS)]
+    ? ['--permission-mode', 'dontAsk', '--settings', JSON.stringify(interviewSettings(workspaceUser))]
     : ['--dangerously-skip-permissions'];
   const args = ['-p', message, '--output-format', 'json', ...permissionArgs, '--disallowed-tools', 'Agent'];
   if (CLAUDE_MODEL) {
@@ -180,7 +186,7 @@ function buildClaudeArgs(message, claudeSessionId, requestedProfile) {
   return args;
 }
 
-function runClaude({ sessionId, message, cwd, command, timeoutMs, rememberSession, permissionProfile }) {
+function runClaude({ sessionId, message, cwd, command, timeoutMs, rememberSession, permissionProfile, workspaceUser }) {
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
     const startedAtIso = new Date(startedAt).toISOString();
@@ -192,7 +198,7 @@ function runClaude({ sessionId, message, cwd, command, timeoutMs, rememberSessio
     const storedSession = sessionId && shouldRememberSession ? claudeSessions.get(sessionId) : null;
     const claudeSessionId = storedSession?.claudeSessionId || null;
     const executable = command || 'claude';
-    const finalArgs = buildClaudeArgs(message, claudeSessionId, permissionProfile);
+    const finalArgs = buildClaudeArgs(message, claudeSessionId, permissionProfile, workspaceUser);
     const effectiveTimeoutMs = Number(timeoutMs || 120000);
 
     if (!fs.existsSync(workingDir)) {
@@ -216,7 +222,8 @@ function runClaude({ sessionId, message, cwd, command, timeoutMs, rememberSessio
       mode: claudeSessionId ? 'resume' : 'new',
       claudeSessionId: claudeSessionId || null,
       rememberSession: shouldRememberSession,
-      permissionProfile: resolvePermissionProfile(permissionProfile)
+      permissionProfile: resolvePermissionProfile(permissionProfile),
+      workspaceUser: workspaceUser || null
     });
 
     const proc = spawn(executable, finalArgs, {
@@ -487,7 +494,8 @@ const server = http.createServer(async (req, res) => {
           ? claudeSessions.get(payload.sessionId).claudeSessionId
           : null,
         rememberSession: payload.rememberSession !== false,
-        permissionProfile: resolvePermissionProfile(payload.permissionProfile)
+        permissionProfile: resolvePermissionProfile(payload.permissionProfile),
+        workspaceUser: payload.workspaceUser || null
       });
 
       const result = await runClaude(payload);
