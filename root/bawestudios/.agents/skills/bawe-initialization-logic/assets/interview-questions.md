@@ -27,6 +27,7 @@ Cuando `project-context-detector` emite `INTAKE_IN_PROGRESS`:
 4. Leer unicamente el asset exacto que contiene esa pregunta.
 5. Formular una sola pregunta o ejecutar el cierre indicado por ese asset.
 6. Despues de recibir respuesta, actualizar `log-preguntas.md` segun las reglas del asset actual.
+   Si la respuesta del cliente corresponde a una pregunta que el log ya marca como completada (reenvio tras un corte de conexion), no la registres de nuevo ni avances otra vez: formular la `Siguiente pregunta pendiente`.
 7. No leer defaults, templates ni assets posteriores hasta que `Siguiente pregunta pendiente` lo indique.
 
 Cuando `project-context-detector` emite `CONTEXT_GENERATION_PENDING`, la entrevista ya esta completa. No leer assets de entrevista; leer `[WORKSPACE_ROOT]/.agents/skills/project-context-generator/SKILL.md`.

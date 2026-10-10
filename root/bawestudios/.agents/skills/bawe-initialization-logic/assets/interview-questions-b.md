@@ -105,6 +105,8 @@ Si ya existe una integracion mencionada:
 - Incluir las integraciones ya mencionadas como opciones preseleccionables en lenguaje natural.
 - Preguntar si quiere agregar otra integracion externa.
 
+Las opciones de B1 y B_DEPLOY se emiten con el bloque `[[BAWE_OPCIONES]]` definido en `interview-questions-a.md` («Emitir bloque de opciones para el frontend»): `No por ahora`, `No agregar otra` y `Todavía no lo sé` van como `salida:`.
+
 Plantilla cuando ya hay integraciones mencionadas:
 
 > "Ya mencionaste [INTEGRACIONES_DETECTADAS]. ¿Confirmamos eso como integracion externa del sistema y queres agregar alguna otra?"
@@ -112,6 +114,8 @@ Plantilla cuando ya hay integraciones mencionadas:
 Formato de entrega:
 
 `Confirmar [integracion detectada] | Agregar email | Agregar pagos | Agregar Google Calendar/Maps | No agregar otra | Otra`
+
+`No agregar otra` solo se ofrece cuando hay al menos una integracion detectada para confirmar.
 
 Si no hay integraciones mencionadas previamente:
 

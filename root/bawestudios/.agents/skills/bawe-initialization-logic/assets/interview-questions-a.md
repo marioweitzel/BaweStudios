@@ -72,9 +72,10 @@ Ejemplos de adaptacion:
 
 ### Emitir bloque de opciones para el frontend
 
-Ademas de la pregunta en lenguaje natural con las opciones generadas, agregar
-inmediatamente despues, en su propia seccion, este bloque para que el
-frontend de BaweStudio pueda renderizarlas como clickeables:
+Contrato unico para toda la entrevista (Seccion A y Seccion B). Ademas de la
+pregunta en lenguaje natural, agregar inmediatamente despues, en su propia
+seccion, este bloque para que el frontend de BaweStudio renderice las opciones
+como botones:
 
 ```text
 [[BAWE_OPCIONES]]
@@ -82,14 +83,20 @@ multiple: true
 1. [opcion concreta]
 2. [opcion concreta]
 ...
+salida: [opcion de salida]
 Otra
 [[/BAWE_OPCIONES]]
 ```
 
-- Las opciones numeradas son las mismas que ya se generaron para la pregunta, en el mismo orden — no generar un segundo set de opciones distinto.
-- `multiple: true` por default, salvo que la pregunta puntual indique lo contrario.
+- Las lineas numeradas son las opciones de contenido que ya se generaron para la pregunta, en el mismo orden — no generar un segundo set distinto.
+- `salida: X`: una linea por cada opcion de salida de la pregunta (`No por ahora`, `No aplica`, `No se necesitan archivos`, `Sin preferencia`, `No agregar otra`, `Todavía no lo sé`). Sin numero. Son excluyentes: elegir una anula todo lo demas.
+- `Otra`: ultima linea, sin numero, solo si la pregunta admite respuesta libre. No es salida: se combina con las opciones de contenido y el cliente escribe su propia respuesta.
+- `Colores especificos` (A10) y `Confirmar [integracion]` (B1) son opciones de contenido, no salidas.
+- `multiple` va siempre explicito. `true` en las preguntas combinables (A5 a A11, A_PRIORITIES, B1); `false` en B_DEPLOY y en cualquier pregunta donde las opciones se excluyan entre si.
+- Si la respuesta del cliente mezcla una salida con contenido o texto propio, vale el contenido o texto; no repreguntar.
+- La linea de «Formato de entrega» con barras (`a | b | Otra`) de cada pregunta es solo la fuente de las opciones: no mostrarla al cliente como texto. Las opciones llegan unicamente en el bloque.
 - Este bloque nunca reemplaza la pregunta en lenguaje natural; va ademas, nunca en lugar de.
-- No traducir, parafrasear ni alterar `[[BAWE_OPCIONES]]` / `[[/BAWE_OPCIONES]]`.
+- No traducir, parafrasear ni alterar `[[BAWE_OPCIONES]]` / `[[/BAWE_OPCIONES]]` ni las claves `multiple:` y `salida:`.
 
 ---
 
@@ -433,12 +440,12 @@ Aplicar la `REGLA GENERAL PARA OPCIONES DINAMICAS`.
 Reglas:
 
 - Las opciones deben describir sensaciones humanas, no estilos tecnicos.
-- Incluir siempre `Sin preferencia`.
+- Incluir siempre `Sin preferencia` y `Otra`.
 - Si el cliente definio colores en A_BRAND, las opciones deben respetar esa restriccion.
 
 Formato de entrega:
 
-`[sensacion concreta] | [sensacion concreta] | ... | Sin preferencia`
+`[sensacion concreta] | [sensacion concreta] | ... | Sin preferencia | Otra`
 
 ### A_REF. URL de referencia *(opcional)*
 > "¿Hay algún sitio web que te guste como referencia visual? (podés omitir)"
