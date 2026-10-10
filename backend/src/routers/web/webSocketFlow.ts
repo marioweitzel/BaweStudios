@@ -157,7 +157,7 @@ type WebSocketFlowDeps = {
     attachment?: StoredChatAttachment
   ) => StoredChatHistory | null;
   setPendingQuestion: (historyId: string | null, userId: string | null | undefined, text: string, chatOptions?: StoredChatOptions | null) => StoredChatHistory | null;
-  registerSecurityStrike: (userId: string) => { strikes: number; blocked: boolean };
+  registerSecurityStrike: (userId: string, attempt?: string) => { strikes: number; blocked: boolean; counted: boolean };
   startEditJob: (projectId: string, userId: string, reason: string) => void;
   suggestProjectName: (userId: string, projectName: string) => string;
   updateChatHistorySession: (
@@ -245,6 +245,8 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     let safeProjectId: string | null = null;
     let activeChatHistoryId: string | null = null;
     let hostBusy = false;
+    // Ultimo mensaje del cliente enviado al host: identifica el ataque para no contarlo dos veces.
+    let lastClientMessage = '';
     // Turno en curso cuando se cerro la pestana: el host sigue hasta terminar el turno (la respuesta
     // queda guardada en el historial) y recien entonces se cierra la sesion. Ver 'disconnect'.
     let detachedTurn = false;
@@ -285,7 +287,15 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     return { permissionProfile: 'interview', workspaceUser: workspaceUserId(socketUser.id) };
   }
 
+  // Texto libre del LLM que no es una pregunta (progreso, cierre): vacio si trae datos internos.
+  function clientSafeProgressText(text: string | null | undefined) {
+    const value = String(text || '');
+    if (!value.trim() || isGenericNoticeResponse(value) || containsInternalDetails(value)) return '';
+    return value;
+  }
+
   function buildOutgoingUserMessage(userMessage: string, attachment?: StoredChatAttachment) {
+    lastClientMessage = userMessage;
     return activeSessionIsEdit
       ? appendEditAttachmentToPrompt(userMessage, attachment)
       : appendWebAttachmentToPrompt(userMessage, attachment);
@@ -354,18 +364,18 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
   // se cuenta el intento y se avisa al frontend (1ro: advertencia, 2do: bloqueo).
   function handleHackAttempt() {
     const history = activeChatHistoryId ? readDb().chatHistories.find(h => h.id === activeChatHistoryId) : null;
-    const attempted = String((history as any)?.pending_answer?.text || '').slice(0, 300);
+    const attempted = String((history as any)?.pending_answer?.text || lastClientMessage || '').slice(0, 300);
     updateChatHistoryTurn(activeChatHistoryId, socketUser?.id, { pending_answer: null });
     hostBusy = false;
     setExecutionState(safeProjectId, socketUser?.id, activeSessionId, 'IDLE', socket.id);
     socket.emit('host:pending', { pending: false });
-    const result = socketUser?.id ? registerSecurityStrike(socketUser.id) : { strikes: 0, blocked: false };
+    const result = socketUser?.id ? registerSecurityStrike(socketUser.id, attempted) : { strikes: 0, blocked: false, counted: false };
     recordHostTurnEvent({
       projectId: safeProjectId,
       userId: socketUser?.id,
       sessionId: activeSessionId,
       eventType: 'security.hack_attempt',
-      payload: { strikes: result.strikes, blocked: result.blocked, chatHistoryId: activeChatHistoryId, clientMessage: attempted }
+      payload: { strikes: result.strikes, blocked: result.blocked, counted: result.counted, chatHistoryId: activeChatHistoryId, clientMessage: attempted }
     });
     console.warn(`[Security] Intento de hack: user=${socketUser?.id} strikes=${result.strikes} blocked=${result.blocked}`);
     emitProjectUpdate(socket, safeProjectId, socketUser?.id);
@@ -771,7 +781,8 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
           socket.emit('progress:update', {
             step: message.phase,
             percent: 50,
-            message: message.text
+            // El texto de progreso viene crudo del LLM: pasa por el mismo filtro que la pregunta.
+            message: clientSafeProgressText(message.text)
           });
         } else if (message.type === 'interview_summary') {
           const totalAnswers = Object.keys(message.answers || {}).length;
@@ -784,17 +795,17 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
             hostBusy = false;
             setExecutionState(safeProjectId, socketUser?.id, activeSessionId, 'IDLE', socket.id);
             socket.emit('host:pending', { pending: false });
-            socket.emit('agent-event', { ...message, text: message.text || interviewCompleteNotice });
+            socket.emit('agent-event', { ...message, text: clientSafeProgressText(message.text) || interviewCompleteNotice });
             if (safeProjectId && socketUser?.id) {
               confirmPendingChatTurn(activeChatHistoryId, socketUser.id);
               updateChatHistoryTurn(activeChatHistoryId, socketUser.id, { pending_question: null, pending_answer: null });
-              appendUniqueAgentNotice(activeChatHistoryId, message.text || interviewCompleteNotice);
+              appendUniqueAgentNotice(activeChatHistoryId, clientSafeProgressText(message.text) || interviewCompleteNotice);
               const project = updateProject(safeProjectId, socketUser.id, { status: 'building' });
               if (project) socket.emit('project:updated', publicProject(project));
             }
           }
         } else if (message.type === 'error') {
-          emitAgentError(message.text);
+          emitAgentError(clientSafeHostError(String(message.text || '')));
         }
       };
 
@@ -898,6 +909,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
         recordHostTurnEvent({ projectId: safeProjectId, userId: socketUser.id, sessionId, eventType: 'host.send', payload: { message: command } });
         await hostManager.send(sessionId, command, { permissionProfile: 'interview', workspaceUser: workspaceUserId(socketUser.id) });
       } else {
+        lastClientMessage = userMessage;
         recordHostTurnEvent({ projectId: safeProjectId, userId: socketUser.id, sessionId, eventType: 'host.send', payload: { message: userMessage } });
         await hostManager.send(sessionId, userMessage, { permissionProfile: 'interview', workspaceUser: workspaceUserId(socketUser.id) });
       }
