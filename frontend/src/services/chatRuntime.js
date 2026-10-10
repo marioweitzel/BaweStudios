@@ -190,7 +190,7 @@ function firstUnfinishedProject(exceptProjectId){
 }
 
 function newProjectBlockedMessage(){
-  return 'Tenes un proyecto sin terminar.\n\nPodes volver a ese proyecto para descargar el hilo antes de eliminarlo si ya no lo necesitas. Para crear un proyecto nuevo, primero tenes que finalizar o eliminar el proyecto actual.';
+  return 'Tenés un proyecto sin terminar.\n\nPodés volver a ese proyecto para descargar la conversación antes de eliminarlo, si ya no lo necesitás. Para crear un proyecto nuevo, primero tenés que finalizar o eliminar el actual.';
 }
 
 function blockNewProjectIfNeeded(){
