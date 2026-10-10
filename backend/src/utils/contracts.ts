@@ -105,7 +105,7 @@ export function isEditFinishedContract(text: string | null | undefined) {
   return String(text || '').includes(EDIT_FINISHED_MARKER);
 }
 
-export type ParsedChatOptions = { multiple: boolean; items: string[]; hasOtra: boolean };
+export type ParsedChatOptions = { multiple: boolean; items: string[]; exits: string[]; hasOtra: boolean };
 
 /**
  * Extrae el bloque [[BAWE_OPCIONES]]...[[/BAWE_OPCIONES]] (formato acordado
@@ -127,6 +127,7 @@ export function extractChatOptions(text: string | null | undefined): { cleanText
 
   let multiple = false;
   const items: string[] = [];
+  const exits: string[] = [];
   let hasOtra = false;
   for (const rawLine of inner.split(/\r?\n/)) {
     const line = rawLine.trim();
@@ -134,6 +135,12 @@ export function extractChatOptions(text: string | null | undefined): { cleanText
     const multipleMatch = line.match(/^multiple:\s*(true|false)/i);
     if (multipleMatch) {
       multiple = multipleMatch[1].toLowerCase() === 'true';
+      continue;
+    }
+    // salida: X -> opcion de salida (sin numero), excluyente con todo lo demas.
+    const exitMatch = line.match(/^salida:s*(.+)/i);
+    if (exitMatch) {
+      exits.push(exitMatch[1].trim());
       continue;
     }
     const itemMatch = line.match(/^\d+\.\s*(.+)/);
@@ -146,6 +153,6 @@ export function extractChatOptions(text: string | null | undefined): { cleanText
     }
   }
 
-  if (!items.length) return { cleanText, options: null };
-  return { cleanText, options: { multiple, items, hasOtra } };
+  if (!items.length && !exits.length) return { cleanText, options: null };
+  return { cleanText, options: { multiple, items, exits, hasOtra } };
 }

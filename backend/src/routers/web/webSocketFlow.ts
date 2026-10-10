@@ -16,6 +16,7 @@ import type {
   StoredChatAttachment,
   StoredChatHistory,
   StoredChatMessage,
+  StoredChatOptions,
   StoredProject,
   StoredUser
 } from '../../types/domain';
@@ -154,7 +155,7 @@ type WebSocketFlowDeps = {
     text: string,
     attachment?: StoredChatAttachment
   ) => StoredChatHistory | null;
-  setPendingQuestion: (historyId: string | null, userId: string | null | undefined, text: string) => StoredChatHistory | null;
+  setPendingQuestion: (historyId: string | null, userId: string | null | undefined, text: string, chatOptions?: StoredChatOptions | null) => StoredChatHistory | null;
   registerSecurityStrike: (userId: string) => { strikes: number; blocked: boolean };
   startEditJob: (projectId: string, userId: string, reason: string) => void;
   suggestProjectName: (userId: string, projectName: string) => string;
@@ -372,7 +373,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     if (
       isGenericNoticeResponse(text) ||
       containsInternalDetails(text) ||
-      (options && options.items.some(item => containsInternalDetails(item)))
+      (options && [...options.items, ...options.exits].some(item => containsInternalDetails(item)))
     ) {
       recordHostTurnEvent({
         projectId: safeProjectId,
@@ -398,7 +399,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     console.log(`[BACKEND → FRONTEND] emitiendo agent-question: ${text}`);
     socket.emit('host:pending', { pending: false });
     confirmPendingChatTurn(activeChatHistoryId, socketUser?.id);
-    setPendingQuestion(activeChatHistoryId, socketUser?.id, text);
+    setPendingQuestion(activeChatHistoryId, socketUser?.id, text, options);
     if (safeProjectId) saveChatMessage(safeProjectId, 'agent', text);
     emitProjectUpdate(socket, safeProjectId, socketUser?.id);
     socket.emit('agent-question', { question: text, chatHistoryId: activeChatHistoryId, options: options });

@@ -19,46 +19,85 @@ function renderAttachment(attachment){
 // siendo el boton de enviar -- asi el cliente puede combinar seleccion +
 // texto propio, o ignorar los botones y escribir libre, sin dos caminos
 // distintos de respuesta. Criterio acordado con Mario el 24/9/2026.
-function renderChatOptions(options){
-  if(!options||!options.items||!options.items.length)return null;
+// - options.items: opciones de contenido (se combinan si multiple).
+// - options.exits: salidas ("No por ahora"...); excluyentes con todo lo demas.
+// - options.hasOtra: boton "Otra", solo enfoca la caja para escribir; no inserta texto.
+// - readOnly: opciones de preguntas ya respondidas (historial), sin click.
+// El texto que insertan los botones se reemplaza sin pisar lo que el cliente ya escribio.
+function renderChatOptions(options,readOnly){
+  if(!options)return null;
+  var items=options.items||[];
+  var exits=options.exits||[];
+  if(!items.length&&!exits.length)return null;
   var wrap=document.createElement('div');
-  wrap.className='m-options';
+  wrap.className='m-options'+(readOnly?' m-options-done':'');
   var selected=[];
-  var buttons=[];
+  var inserted='';
+  var itemButtons=[];
+  var exitButtons=[];
 
   function syncInput(){
     var input=document.getElementById('chatInput');
     if(!input)return;
-    input.value=selected.join(', ');
+    var typed=input.value;
+    if(inserted&&typed.indexOf(inserted)!==-1)typed=typed.replace(inserted,'');
+    typed=typed.trim().replace(/,+$/,'').trim();
+    var chips=selected.join(', ');
+    input.value=typed&&chips?typed+' '+chips:(typed||chips);
+    inserted=chips;
     input.focus();
   }
 
-  options.items.forEach(function(itemText){
+  function clearSelection(buttons){
+    buttons.forEach(function(b){b.classList.remove('selected');});
+  }
+
+  function addButton(text,isExit){
     var btn=document.createElement('button');
     btn.type='button';
-    btn.className='m-opt-btn';
-    btn.textContent=itemText;
+    btn.className='m-opt-btn'+(isExit?' m-opt-exit':'');
+    btn.textContent=text;
+    if(readOnly){btn.disabled=true;wrap.appendChild(btn);return;}
     btn.addEventListener('click',function(){
-      if(options.multiple){
-        var idx=selected.indexOf(itemText);
-        if(idx===-1){selected.push(itemText);btn.classList.add('selected');}
-        else{selected.splice(idx,1);btn.classList.remove('selected');}
-      }else{
-        selected=[itemText];
-        buttons.forEach(function(b){b.classList.remove('selected');});
+      if(isExit){
+        // Salida: anula todo lo demas.
+        clearSelection(itemButtons);clearSelection(exitButtons);
+        selected=[text];
         btn.classList.add('selected');
+      }else{
+        clearSelection(exitButtons);
+        if(selected.length&&exits.indexOf(selected[0])!==-1)selected=[];
+        if(options.multiple){
+          var idx=selected.indexOf(text);
+          if(idx===-1){selected.push(text);btn.classList.add('selected');}
+          else{selected.splice(idx,1);btn.classList.remove('selected');}
+        }else{
+          selected=[text];
+          clearSelection(itemButtons);
+          btn.classList.add('selected');
+        }
       }
       syncInput();
     });
-    buttons.push(btn);
+    (isExit?exitButtons:itemButtons).push(btn);
     wrap.appendChild(btn);
-  });
+  }
+
+  items.forEach(function(t){addButton(t,false);});
+  exits.forEach(function(t){addButton(t,true);});
 
   if(options.hasOtra){
-    var hint=document.createElement('div');
-    hint.className='m-opt-hint';
-    hint.textContent='Tambien podes escribir tu propia respuesta.';
-    wrap.appendChild(hint);
+    var otra=document.createElement('button');
+    otra.type='button';
+    otra.className='m-opt-btn m-opt-other';
+    otra.textContent='Otra';
+    if(readOnly)otra.disabled=true;
+    else otra.addEventListener('click',function(){
+      // Otra no es una salida: se combina con lo elegido; solo deja escribir.
+      var input=document.getElementById('chatInput');
+      if(input){input.focus();var end=input.value.length;if(input.setSelectionRange)input.setSelectionRange(end,end);}
+    });
+    wrap.appendChild(otra);
   }
   return wrap;
 }

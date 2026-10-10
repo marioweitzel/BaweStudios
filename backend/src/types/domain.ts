@@ -25,6 +25,13 @@ export type StoredProject = {
   updated_at: string;
 };
 
+export type StoredChatOptions = {
+  multiple: boolean;
+  items: string[];
+  exits: string[];
+  hasOtra: boolean;
+};
+
 export type StoredChatMessage = {
   id: string;
   sender: 'user' | 'agent' | 'system';
@@ -33,6 +40,7 @@ export type StoredChatMessage = {
   visible: boolean;
   event_type?: string;
   attachment?: StoredChatAttachment;
+  options?: StoredChatOptions | null;
 };
 
 export type StoredChatAttachment = {

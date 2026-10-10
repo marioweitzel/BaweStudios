@@ -3,6 +3,7 @@ import type {
   StoredChatAttachment,
   StoredChatHistory,
   StoredChatMessage,
+  StoredChatOptions,
   StoredProject
 } from '../types/domain';
 
@@ -79,7 +80,7 @@ export function createChatHistoryService(deps: ChatHistoryDeps) {
   function makeStoredChatMessage(
     sender: 'user' | 'agent' | 'system',
     text: string,
-    options: { visible?: boolean; event_type?: string; attachment?: StoredChatAttachment } = {}
+    options: { visible?: boolean; event_type?: string; attachment?: StoredChatAttachment; options?: StoredChatOptions | null } = {}
   ) {
     return {
       id: makeChatMessageId(sender),
@@ -88,7 +89,8 @@ export function createChatHistoryService(deps: ChatHistoryDeps) {
       timestamp: new Date().toISOString(),
       visible: options.visible !== false,
       event_type: options.event_type,
-      attachment: options.attachment
+      attachment: options.attachment,
+      ...(options.options ? { options: options.options } : {})
     };
   }
 
@@ -132,10 +134,10 @@ export function createChatHistoryService(deps: ChatHistoryDeps) {
     return db.chatHistories[idx];
   }
 
-  function setPendingQuestion(historyId: string | null, userId: string | null | undefined, text: string) {
+  function setPendingQuestion(historyId: string | null, userId: string | null | undefined, text: string, chatOptions?: StoredChatOptions | null) {
     if (!text.trim()) return null;
     return updateChatHistoryTurn(historyId, userId, {
-      pending_question: makeStoredChatMessage('agent', text)
+      pending_question: makeStoredChatMessage('agent', text, { options: chatOptions })
     });
   }
 

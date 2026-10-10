@@ -94,6 +94,10 @@
 .m-opt-btn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.24);}
 .m-opt-btn.selected{background:#3b82f6;border-color:#3b82f6;color:#fff;}
 .m-opt-hint{width:100%;font-size:.7rem;opacity:.6;margin-top:2px;}
+.m-opt-exit{border-style:dashed;color:#cbd5e1;}
+.m-opt-other{border-style:dashed;}
+.m-options-done .m-opt-btn{cursor:default;opacity:.55;}
+.m-options-done .m-opt-btn:hover{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.14);}
 .m-attachment{margin-top:10px;}
 .m-attachment img{display:block;max-width:min(320px,100%);max-height:220px;border-radius:10px;border:1px solid rgba(255,255,255,.16);object-fit:contain;background:#0b1020;}
 .m-attachment-name{font-size:.68rem;opacity:.72;margin-top:6px;overflow-wrap:anywhere;}

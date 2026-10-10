@@ -421,6 +421,14 @@ function loadChatHistory(){
     }
     if(!html)return;
     el.innerHTML=html;
+    // Opciones guardadas con cada pregunta: solo la ultima (pendiente) es clickeable.
+    var bubbles=el.querySelectorAll('.mw .m-bub');
+    msgs.forEach(function(m,i){
+      if(!m.options||(m.role||m.sender)==='user'||!bubbles[i])return;
+      var optsEl=renderChatOptions(m.options,i!==msgs.length-1||requiresContinue);
+      var timeEl=bubbles[i].querySelector('.m-time');
+      if(optsEl)bubbles[i].insertBefore(optsEl,timeEl);
+    });
     if(hostPending)setPendingBubble(true,hostStopping?'stopping':null);
     else setUiLocked(false);
     el.scrollTop=el.scrollHeight;

@@ -59,6 +59,14 @@ function buildBodyLines(messages: StoredChatMessage[]) {
     const timestamp = message.timestamp ? new Date(message.timestamp).toLocaleString('es-AR') : '';
     lines.push(`${messageLabel(message)}${timestamp ? ` - ${timestamp}` : ''}`);
     lines.push(...wrapText(message.text || '', 88));
+    // Las opciones viajan fuera del texto (bloque del motor): se imprimen para que el PDF muestre lo que vio el cliente.
+    if (message.options) {
+      const shown = [...message.options.items.map((item, i) => `${i + 1}. ${item}`), ...message.options.exits, ...(message.options.hasOtra ? ['Otra'] : [])];
+      if (shown.length) {
+        lines.push('Opciones:');
+        for (const opt of shown) lines.push(...wrapText(`  - ${opt}`, 88));
+      }
+    }
     if (message.attachment?.filename) {
       lines.push(`Adjunto: ${message.attachment.filename}`);
     }
