@@ -108,6 +108,22 @@ export function isEditFinishedContract(text: string | null | undefined) {
 export type ParsedChatOptions = { multiple: boolean; items: string[]; exits: string[]; hasOtra: boolean };
 
 /**
+ * Red de seguridad (corridas reales del 5-9/10/2026): el LLM a veces deja ademas del bloque la
+ * linea de fuente con barras ("a | b | c | Otra"), que el cliente veria duplicada. Si hay bloque,
+ * se quitan las lineas del texto cuyos tramos separados por "|" son (casi todos) opciones del bloque.
+ */
+function stripOptionsBarLine(text: string, optionTexts: string[]) {
+  const known = new Set(optionTexts.map(item => item.trim().toLowerCase()).concat('otra'));
+  const kept = text.split(/\r?\n/).filter(line => {
+    const parts = line.split('|').map(part => part.trim()).filter(Boolean);
+    if (parts.length < 3) return true;
+    const matching = parts.filter(part => known.has(part.toLowerCase())).length;
+    return matching / parts.length < 0.6;
+  });
+  return kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/**
  * Extrae el bloque [[BAWE_OPCIONES]]...[[/BAWE_OPCIONES]] (formato acordado
  * con Motor 24/9/2026) de una respuesta del host, si lo trae. Nunca lanza:
  * si el bloque falta, esta mal formado o no tiene items numerados, devuelve
@@ -154,5 +170,5 @@ export function extractChatOptions(text: string | null | undefined): { cleanText
   }
 
   if (!items.length && !exits.length) return { cleanText, options: null };
-  return { cleanText, options: { multiple, items, exits, hasOtra } };
+  return { cleanText: stripOptionsBarLine(cleanText, [...items, ...exits]), options: { multiple, items, exits, hasOtra } };
 }
