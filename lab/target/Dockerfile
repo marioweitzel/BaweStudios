@@ -11,6 +11,6 @@ RUN id ubuntu >/dev/null 2>&1 || useradd -m -s /bin/bash ubuntu; \
 WORKDIR /home/ubuntu/BaweStudiosLinux
 # El codigo del laboratorio y el motor se copian al construir (nada se monta desde la PC).
 COPY canaries /lab/canaries
-RUN bash /lab/canaries/plant.sh
+RUN sed -i "s/$//" /lab/canaries/*.sh && bash /lab/canaries/plant.sh
 USER ubuntu
 CMD ["bash", "-c", "sudo inotifywait -m -r -e modify,create,delete,move,access --format '%T %w%f %e' --timefmt '%F %T' /etc /root /srv /home/ubuntu /tmp 2>/dev/null | tee /tmp/lab-fs-events.log"]
