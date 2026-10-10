@@ -1,3 +1,15 @@
+import { permissionProfileFromEnv } from '../adapters/IHostAdapter';
+import { workspaceUserId } from '../utils/names';
+
+// Perfil de permisos de los trabajos de fondo (desarrollo y cambios). Por defecto 'open' (sin
+// restricciones, como hasta ahora): activar 'development' recien tras probar que los gates de
+// build, runtime y capturas funcionan con el. Ver docs/Pruebas pendientes en corridas.md.
+export function backgroundPermissionFields(project: { userId: string }) {
+  const permissionProfile = permissionProfileFromEnv(process.env.BACKGROUND_PERMISSION_PROFILE, 'open');
+  if (permissionProfile === 'open') return {};
+  return { permissionProfile, workspaceUser: workspaceUserId(project.userId) };
+}
+
 export type HostRuntimeProject = {
   id: string;
   userId: string;

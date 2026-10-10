@@ -172,12 +172,18 @@ function extractCodexOutput(stdout) {
 // a :root), escritura SOLO en la carpeta del usuario, sin red y con secretos negados.
 // Solo puede ENDURECERSE: el perfil del entorno es el piso y el pedido solo puede subirlo.
 const CODEX_PERMISSION_PROFILE = String(process.env.CODEX_PERMISSION_PROFILE || 'open').toLowerCase();
+// Orden (de menos a mas estricto): open < development < interview < readonly.
+// development: escribe solo en user_<id> pero con red (instalar dependencias); readonly: soporte.
+const CODEX_PROFILE_RANK = { open: 0, development: 1, interview: 2, readonly: 3 };
 function resolveCodexPermissionProfile(requested) {
-  return CODEX_PERMISSION_PROFILE === 'interview' || requested === 'interview' ? 'interview' : 'open';
+  const floor = CODEX_PROFILE_RANK[CODEX_PERMISSION_PROFILE] !== undefined ? CODEX_PERMISSION_PROFILE : 'open';
+  const asked = CODEX_PROFILE_RANK[requested] !== undefined ? requested : 'open';
+  return CODEX_PROFILE_RANK[asked] > CODEX_PROFILE_RANK[floor] ? asked : floor;
 }
 const USER_DIR_PATTERN = /^user_\d{1,20}$/;
-function interviewPermissionArgs(workspaceUser) {
-  const writeEntry = USER_DIR_PATTERN.test(String(workspaceUser || '')) ? `,${JSON.stringify(`${workspaceUser}/**`)}="write"` : '';
+function namedPermissionArgs(profile, workspaceUser) {
+  const canWrite = profile !== 'readonly' && USER_DIR_PATTERN.test(String(workspaceUser || ''));
+  const writeEntry = canWrite ? `,${JSON.stringify(`${workspaceUser}/**`)}="write"` : '';
   const secrets = ['~/.codex', '~/.ssh', '~/.claude', '~/.aws', path.join(__dirname, '..', '..', '.env')].map(p => p.split('\\').join('/'));
   const entries = [
     '":root"="read"',
@@ -185,9 +191,9 @@ function interviewPermissionArgs(workspaceUser) {
     ...secrets.map(p => `${JSON.stringify(p)}="deny"`)
   ];
   return [
-    '-c', 'default_permissions="interview"',
-    '-c', `permissions.interview.filesystem={${entries.join(',')}}`,
-    '-c', 'permissions.interview.network.enabled=false'
+    '-c', `default_permissions="${profile}"`,
+    '-c', `permissions.${profile}.filesystem={${entries.join(',')}}`,
+    '-c', `permissions.${profile}.network.enabled=${profile === 'development' ? 'true' : 'false'}`
   ];
 }
 
@@ -196,8 +202,9 @@ function buildCodexArgs(baseArgs, message, threadId, profile, workspaceUser) {
   const options = (args[0] === 'exec' ? args.slice(1) : args)
     .filter(arg => arg !== '--ephemeral');
 
-  if (resolveCodexPermissionProfile(profile) === 'interview') {
-    options.push(...interviewPermissionArgs(workspaceUser));
+  const effectiveProfile = resolveCodexPermissionProfile(profile);
+  if (effectiveProfile !== 'open') {
+    options.push(...namedPermissionArgs(effectiveProfile, workspaceUser));
   }
 
   if (threadId) {

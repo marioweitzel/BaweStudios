@@ -9,7 +9,8 @@ import {
   HostRuntimeProject,
   HostRuntimeRateLimitedError,
   HostRuntimeStatus,
-  HostRuntimeStillRunningError
+  HostRuntimeStillRunningError,
+  backgroundPermissionFields
 } from '../HostRuntime';
 
 type ClaudeBridgeConfig = {
@@ -56,7 +57,8 @@ export class ClaudeRuntime implements HostRuntime {
         message,
         ...(this.cwd ? { cwd: this.cwd } : {}),
         timeoutMs,
-        rememberSession: false
+        rememberSession: false,
+        ...backgroundPermissionFields(project)
       })
     });
     const bodyText = await res.text();

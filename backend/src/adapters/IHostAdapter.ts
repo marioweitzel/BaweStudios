@@ -8,12 +8,20 @@
  * La comunicación es siempre mediante JSON estructurado por línea.
  */
 
+// Perfiles que entiende el bridge (de menos a mas estricto): open < development < interview < readonly.
+export type HostPermissionProfile = 'open' | 'development' | 'interview' | 'readonly';
+
+export function permissionProfileFromEnv(value: string | undefined, fallback: HostPermissionProfile): HostPermissionProfile {
+  const v = String(value || '').trim().toLowerCase();
+  return v === 'open' || v === 'development' || v === 'interview' || v === 'readonly' ? v : fallback;
+}
+
 export type HostSendOptions = {
   markers?: { start: string; end: string };
   // Perfil de permisos que el bridge aplica a la CLI en este pedido (lista blanca).
   // 'interview' = estricto (sin shell ni red; escribe solo en carpetas de usuario).
   // Ausente = el bridge usa su perfil por defecto. Solo puede ENDURECER, nunca aflojar.
-  permissionProfile?: 'interview' | 'open';
+  permissionProfile?: HostPermissionProfile;
   // Carpeta de usuario del cliente (user_<id>): unico lugar donde el perfil estricto deja escribir.
   workspaceUser?: string;
 };

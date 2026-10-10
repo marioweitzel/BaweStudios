@@ -28,6 +28,7 @@ import { extractChatOptions, isFinalContract, isInvalidCommandResponse, isPartia
 import { clientSafeHostError } from '../../utils/hostErrors';
 import { CLIENT_GENERIC_NOTICE, containsInternalDetails, isGenericNoticeResponse, isHackAttemptResponse } from '../../utils/clientSafeText';
 import { makeSafeName, normalizeProjectName, workspaceUserId } from '../../utils/names';
+import { permissionProfileFromEnv, type HostSendOptions } from '../../adapters/IHostAdapter';
 import { detectPendingMotorQueueWork } from '../../utils/projectFiles';
 import { normalizeProjectFamily } from '../projectFamilies';
 import {
@@ -175,6 +176,10 @@ type WebSocketFlowDeps = {
 };
 
 // Cuanto puede seguir un turno huerfano (pestana cerrada) antes de cerrarse a la fuerza; 0 = comportamiento anterior (cortar al desconectar).
+// Perfiles de permisos por fase (el bridge solo puede endurecerlos). Soporte es de solo lectura;
+// el intake de cambios escribe solo la cola dentro de la carpeta del cliente, sin shell ni red.
+const SUPPORT_PERMISSION_PROFILE = permissionProfileFromEnv(process.env.SUPPORT_PERMISSION_PROFILE, 'readonly');
+const EDIT_PERMISSION_PROFILE = permissionProfileFromEnv(process.env.EDIT_INTAKE_PERMISSION_PROFILE, 'interview');
 const DETACHED_TURN_MAX_MS = Number(process.env.HOST_DETACHED_TURN_MAX_MS ?? 20 * 60 * 1000);
 
 export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDeps) {
@@ -273,9 +278,11 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
 
   // Opciones de envio segun la fase: las sesiones de soporte y de cambios usan sus marcadores
   // (perfil por defecto del bridge); la entrevista pide el perfil estricto (lista blanca).
-  function activeSessionSendOptions(): { markers?: { start: string; end: string }; permissionProfile?: 'interview'; workspaceUser?: string } {
+  function activeSessionSendOptions(): HostSendOptions {
     const markers = activeSessionMarkers();
-    return markers ? { markers } : { permissionProfile: 'interview', workspaceUser: workspaceUserId(socketUser.id) };
+    if (activeSessionIsSupport) return { markers, permissionProfile: SUPPORT_PERMISSION_PROFILE, workspaceUser: workspaceUserId(socketUser.id) };
+    if (activeSessionIsEdit) return { markers, permissionProfile: EDIT_PERMISSION_PROFILE, workspaceUser: workspaceUserId(socketUser.id) };
+    return { permissionProfile: 'interview', workspaceUser: workspaceUserId(socketUser.id) };
   }
 
   function buildOutgoingUserMessage(userMessage: string, attachment?: StoredChatAttachment) {
@@ -1078,7 +1085,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
 
       const command = buildWebSupportCommand(project);
       recordHostTurnEvent({ projectId: safeProjectId, userId: socketUser.id, sessionId, eventType: 'host.send', payload: { message: command } });
-      await hostManager.send(sessionId, command, { markers: { start: SUPPORT_RESPONSE_START, end: SUPPORT_RESPONSE_END } });
+      await hostManager.send(sessionId, command, { markers: { start: SUPPORT_RESPONSE_START, end: SUPPORT_RESPONSE_END }, permissionProfile: SUPPORT_PERMISSION_PROFILE, workspaceUser: workspaceUserId(socketUser.id) });
     } catch (err) {
       console.error(`[Socket] Error al iniciar soporte: ${err}`);
       hostBusy = false;
@@ -1342,7 +1349,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
 
       const command = buildWebEditCommand(project);
       recordHostTurnEvent({ projectId: safeProjectId, userId: socketUser.id, sessionId, eventType: 'host.send', payload: { message: command } });
-      await hostManager.send(sessionId, command, { markers: { start: EDIT_RESPONSE_START, end: EDIT_RESPONSE_END } });
+      await hostManager.send(sessionId, command, { markers: { start: EDIT_RESPONSE_START, end: EDIT_RESPONSE_END }, permissionProfile: EDIT_PERMISSION_PROFILE, workspaceUser: workspaceUserId(socketUser.id) });
     } catch (err) {
       console.error(`[Socket] Error al iniciar cambios: ${err}`);
       hostBusy = false;

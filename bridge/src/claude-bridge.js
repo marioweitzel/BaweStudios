@@ -26,11 +26,30 @@ const PERMISSION_PROFILE = (readEnvVar('CLAUDE_PERMISSION_PROFILE') || 'open').t
 // Con workspaceUser valido (user_<id>) el alcance es la carpeta exacta del
 // cliente; sin el, queda el comodin user_* (comportamiento previo).
 const USER_DIR_PATTERN = /^user_\d{1,20}$/;
-function interviewSettings(workspaceUser) {
+// Perfiles (de menos a mas estricto): open < development < interview < readonly.
+//  - development: desarrollo autonomo; lee y escribe en la carpeta del cliente y puede usar
+//    shell, sin acceso web propio de la CLI y con las credenciales del operador negadas. El
+//    shell de Claude no se puede acotar por carpeta: la contencion real es del sistema operativo.
+//  - interview: entrevista, cambios (intake) y adjuntos: sin shell ni red, escribe solo en user_<id>.
+//  - readonly: soporte; solo lectura.
+const PROFILE_RANK = { open: 0, development: 1, interview: 2, readonly: 3 };
+function profileSettings(profile, workspaceUser) {
   const userDir = USER_DIR_PATTERN.test(String(workspaceUser || '')) ? workspaceUser : 'user_*';
+  const reads = ['Read(.agents/**)', `Read(${userDir}/**)`];
+  if (profile === 'readonly') {
+    return { permissions: { allow: reads, deny: ['Edit', 'Write', 'NotebookEdit', 'Bash', 'PowerShell', 'WebFetch', 'WebSearch'] } };
+  }
+  if (profile === 'development') {
+    return {
+      permissions: {
+        allow: [...reads, `Edit(${userDir}/**)`, `Write(${userDir}/**)`, 'Bash', 'PowerShell'],
+        deny: ['WebFetch', 'WebSearch', 'Edit(.agents/**)', 'Write(.agents/**)', 'Read(~/.ssh/**)', 'Read(~/.aws/**)', 'Read(~/.claude/**)', 'Read(~/.codex/**)']
+      }
+    };
+  }
   return {
     permissions: {
-      allow: ['Read(.agents/**)', `Read(${userDir}/**)`, `Edit(${userDir}/**)`],
+      allow: [...reads, `Edit(${userDir}/**)`],
       deny: ['Bash', 'PowerShell', 'WebFetch', 'WebSearch', 'Edit(.agents/**)']
     }
   };
@@ -150,7 +169,9 @@ function extractClaudeOutput(stdout) {
 // Perfil efectivo: SOLO PUEDE ENDURECERSE. El perfil del entorno (CLAUDE_PERMISSION_PROFILE)
 // es el piso; el pedido del backend puede subir a 'interview' pero nunca bajar a 'open'.
 function resolvePermissionProfile(requested) {
-  return PERMISSION_PROFILE === 'interview' || requested === 'interview' ? 'interview' : 'open';
+  const floor = PROFILE_RANK[PERMISSION_PROFILE] !== undefined ? PERMISSION_PROFILE : 'open';
+  const asked = PROFILE_RANK[requested] !== undefined ? requested : 'open';
+  return PROFILE_RANK[asked] > PROFILE_RANK[floor] ? asked : floor;
 }
 
 function buildClaudeArgs(message, claudeSessionId, requestedProfile, workspaceUser) {
@@ -178,9 +199,10 @@ function buildClaudeArgs(message, claudeSessionId, requestedProfile, workspaceUs
   // not delegate development outside the single LLM vertical development
   // flow.") -- esto la hace cumplir tecnicamente en vez de depender de que
   // el modelo la respete solo.
-  const permissionArgs = resolvePermissionProfile(requestedProfile) === 'interview'
-    ? ['--permission-mode', 'dontAsk', '--settings', JSON.stringify(interviewSettings(workspaceUser))]
-    : ['--dangerously-skip-permissions'];
+  const effectiveProfile = resolvePermissionProfile(requestedProfile);
+  const permissionArgs = effectiveProfile === 'open'
+    ? ['--dangerously-skip-permissions']
+    : ['--permission-mode', 'dontAsk', '--settings', JSON.stringify(profileSettings(effectiveProfile, workspaceUser))];
   const args = ['-p', message, '--output-format', 'json', ...permissionArgs, '--disallowed-tools', 'Agent'];
   if (CLAUDE_MODEL) {
     args.push('--model', CLAUDE_MODEL);
