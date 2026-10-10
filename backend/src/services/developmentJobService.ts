@@ -2,6 +2,9 @@ import type { HostRuntime, HostRuntimeStatus } from '../host-runtimes/HostRuntim
 import { HostRuntimeRateLimitedError, HostRuntimeStillRunningError } from '../host-runtimes/HostRuntime';
 import type { HostJobStatus, HostWaitResult, StoredProject } from '../types/domain';
 import { isFinalContract, isPartialContract } from '../utils/contracts';
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 // Ventana de fallback cuando el bridge no pudo resolver una hora exacta de reset
 // del limite de uso/sesion del CLI (Claude o Codex). Solo se usa si el mensaje
@@ -27,6 +30,27 @@ const RATE_LIMIT_MIN_WAIT_MINUTES = Number(process.env.HOST_RATE_LIMIT_MIN_WAIT_
 // fallido. Los rechazos por limite no consumen intentos; este tope evita
 // esperar para siempre si el huesped nunca se libera.
 const RATE_LIMIT_MAX_WAITS = Number(process.env.HOST_RATE_LIMIT_MAX_WAITS || 6);
+
+// Contratos parciales seguidos sin ningun cambio en la cola de objetivos antes
+// de dar el job por detenido. Evita quemar la ventana del CLI repitiendo el
+// mismo bloqueo (corrida "Nandu" 5/10/2026: 3 hilos de 274k-550k tokens sin
+// avance). 0 = desactivado.
+const NO_PROGRESS_MAX_PARTIALS = Number(process.env.HOST_NO_PROGRESS_MAX_PARTIALS || 2);
+
+// Huella del estado de la cola de objetivos del proyecto (id, estado, accion
+// siguiente y bloqueos de cada objetivo). null si no se puede leer: sin huella
+// no se puede afirmar que no hubo avance.
+function readQueueFingerprint(projectPath: string | undefined | null): string | null {
+  if (!projectPath) return null;
+  try {
+    const queue = JSON.parse(fs.readFileSync(path.join(projectPath, '.bawe', 'component-queue.json'), 'utf8'));
+    if (!Array.isArray(queue?.objectives)) return null;
+    const summary = queue.objectives.map((o: any) => [o?.id, o?.status, o?.next_action, o?.blockers]);
+    return crypto.createHash('sha1').update(JSON.stringify(summary)).digest('hex');
+  } catch {
+    return null;
+  }
+}
 
 // Cada cuanto el supervisor revisa si hay proyectos "building" sin ningun job
 // corriendo en memoria (ver startStuckJobSupervisor). Antes de esto, la unica
@@ -367,9 +391,41 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
     const state: RateLimitChainState = { chainStartedAtIso: new Date().toISOString(), rateLimitWaits: 0 };
     // Un turno completado (contrato parcial) corta la racha de limites; los
     // rechazos por limite no consumen intentos (se compensa el attempt++ del for).
+    // Cola de objetivos al arrancar la racha y turnos parciales seguidos que la
+    // dejaron igual: si se repite, el job se detiene en vez de seguir gastando cupo.
+    const progress = {
+      queueFingerprint: readQueueFingerprint(deps.readDb().projects.find(p => p.id === projectId && p.userId === userId)?.project_path),
+      stalledPartials: 0
+    };
     const processResponse = async (a: Parameters<typeof processDevelopmentResponse>[0]) => {
       const result = await processDevelopmentResponse(a);
-      if (result === 'continue') state.rateLimitWaits = 0;
+      if (result !== 'continue') return result;
+      state.rateLimitWaits = 0;
+
+      const fingerprint = readQueueFingerprint(a.project.project_path);
+      progress.stalledPartials = fingerprint !== null && fingerprint === progress.queueFingerprint ? progress.stalledPartials + 1 : 0;
+      progress.queueFingerprint = fingerprint;
+      if (NO_PROGRESS_MAX_PARTIALS > 0 && progress.stalledPartials >= NO_PROGRESS_MAX_PARTIALS) {
+        await deps.upsertHostJob({
+          projectId: a.projectId,
+          userId: a.userId,
+          sessionId: a.sessionId,
+          status: 'failed',
+          command: a.command,
+          response: a.responseText,
+          error: `Sin avance: ${progress.stalledPartials} contratos parciales seguidos sin cambios en la cola de objetivos`,
+          attempts: a.attempt,
+          finished: true
+        });
+        deps.recordHostTurnEvent({
+          projectId: a.projectId,
+          userId: a.userId,
+          sessionId: a.sessionId,
+          eventType: 'background.job.no_progress_stopped',
+          payload: { attempt: a.attempt, stalledPartials: progress.stalledPartials }
+        });
+        return 'done';
+      }
       return result;
     };
     deps.recordHostTurnEvent({
