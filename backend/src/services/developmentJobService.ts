@@ -19,7 +19,17 @@ const SESSION_WINDOW_MARGIN_MINUTES = Number(process.env.HOST_SESSION_WINDOW_MAR
 
 // Margen para una hora ya parseada del mensaje del huesped ("try again at
 // 5:31 AM" viene truncada al minuto).
-const PARSED_RESET_MARGIN_MINUTES = 1;
+const PARSED_RESET_MARGIN_MINUTES = Number(process.env.HOST_PARSED_RESET_MARGIN_MINUTES || 10);
+
+// CLI entre los que el trabajo de fondo puede pasar cuando uno llega a su limite
+// (en orden de preferencia). Con menos de dos, no hay cambio de CLI y se espera
+// en el mismo, como antes. OpenCode no entra: su nivel gratis no se usa.
+const FAILOVER_ADAPTERS = (process.env.HOST_FAILOVER_ADAPTERS ?? 'claude-code,codex')
+  .split(',').map(s => s.trim()).filter(Boolean);
+
+// Con cambio de CLI, cada limite es de un CLI y no de todo el trabajo: el tope de
+// esperas seguidas sin completar un turno es mayor (cada vuelta completa son horas).
+const RATE_LIMIT_MAX_WAITS_FAILOVER = Number(process.env.HOST_RATE_LIMIT_MAX_WAITS_FAILOVER || 12);
 
 // Si la hora de reanudacion calculada ya paso (estimacion vieja, o limite
 // que reaparece), se espera al menos esto antes de reintentar: evita rafagas
@@ -133,6 +143,75 @@ function resolveRateLimitResumeAt(resetAtIso: string | null | undefined, chainSt
 
 export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
   const developmentJobs = new Map<string, Promise<void>>();
+  // Hora (ms) hasta la que cada CLI esta en limite, ya con el margen. En memoria:
+  // si el backend reinicia se olvida, y el primer rechazo la vuelve a registrar.
+  const adapterLimitedUntil = new Map<string, number>();
+
+  function failoverEnabled() {
+    return FAILOVER_ADAPTERS.length >= 2;
+  }
+
+  // CLI que usa hoy el proyecto: el elegido, o el primero de la lista si no eligio.
+  function currentAdapterOf(project?: StoredProject | null): string {
+    const preferred = project?.preferredHostAdapter;
+    return preferred && FAILOVER_ADAPTERS.includes(preferred) ? preferred : FAILOVER_ADAPTERS[0];
+  }
+
+  // Cambio de CLI tras un limite. Devuelve true si el trabajo puede seguir (ya sea
+  // porque se paso a otro CLI libre, o porque se espero al que se libera primero).
+  async function failoverAfterLimit(args: {
+    projectId: string;
+    userId: string;
+    sessionId: string;
+    command: string | null;
+    attempt: number;
+    limitedAdapter: string;
+    resumeAt: string;
+    source: string;
+    state: RateLimitChainState;
+  }): Promise<boolean> {
+    const { projectId, userId, sessionId, command, attempt, limitedAdapter, resumeAt, source, state } = args;
+    adapterLimitedUntil.set(limitedAdapter, Date.parse(resumeAt));
+    const now = Date.now();
+    const free = FAILOVER_ADAPTERS.find(a => a !== limitedAdapter && (adapterLimitedUntil.get(a) || 0) <= now);
+    let target: string;
+    let waitUntilMs = now;
+    if (free) {
+      target = free;
+    } else {
+      // Todos en limite: se espera al que se libera primero.
+      target = FAILOVER_ADAPTERS.reduce((best, a) =>
+        (adapterLimitedUntil.get(a) || 0) < (adapterLimitedUntil.get(best) || 0) ? a : best, FAILOVER_ADAPTERS[0]);
+      waitUntilMs = adapterLimitedUntil.get(target) || now;
+    }
+    deps.updateProject(projectId, userId, { preferredHostAdapter: target });
+    await deps.upsertHostJob({
+      projectId,
+      userId,
+      sessionId,
+      status: waitUntilMs > now ? 'rate_limited' : 'running',
+      command,
+      error: `${limitedAdapter} alcanzo su limite de uso; el trabajo sigue con ${target}`,
+      attempts: attempt,
+      resumeAt: waitUntilMs > now ? new Date(waitUntilMs).toISOString() : null
+    });
+    deps.recordHostTurnEvent({
+      projectId,
+      userId,
+      sessionId,
+      eventType: 'background.job.adapter_switched',
+      payload: {
+        from: limitedAdapter,
+        to: target,
+        resumeAt: waitUntilMs > now ? new Date(waitUntilMs).toISOString() : null,
+        limitedUntil: Object.fromEntries(FAILOVER_ADAPTERS.map(a => [a, adapterLimitedUntil.get(a) ? new Date(adapterLimitedUntil.get(a) as number).toISOString() : null])),
+        source
+      }
+    });
+    if (waitUntilMs > now) await sleep(waitUntilMs - now);
+    state.chainStartedAtIso = new Date().toISOString();
+    return true;
+  }
 
   // El proyecto decide a que CLI se le consulta el estado (preferredHostAdapter).
   async function getHostRuntimeStatus(sessionId: string, project?: StoredProject | null): Promise<HostRuntimeStatus | null> {
@@ -262,14 +341,15 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
   }): Promise<boolean> {
     const { projectId, userId, sessionId, command, attempt, state, resetAt, message, origin = 'poll' } = args;
     state.rateLimitWaits += 1;
-    if (state.rateLimitWaits > RATE_LIMIT_MAX_WAITS) {
+    const maxWaits = failoverEnabled() ? RATE_LIMIT_MAX_WAITS_FAILOVER : RATE_LIMIT_MAX_WAITS;
+    if (state.rateLimitWaits > maxWaits) {
       await deps.upsertHostJob({
         projectId,
         userId,
         sessionId,
         status: 'failed',
         command,
-        error: `El host sigue en limite de uso tras ${RATE_LIMIT_MAX_WAITS} esperas consecutivas sin completar un turno`,
+        error: `El host sigue en limite de uso tras ${maxWaits} esperas consecutivas sin completar un turno`,
         attempts: attempt,
         finished: true
       });
@@ -278,11 +358,20 @@ export function createDevelopmentJobService(deps: DevelopmentJobDeps) {
         userId,
         sessionId,
         eventType: 'background.job.rate_limit_gave_up',
-        payload: { attempt, waits: state.rateLimitWaits - 1, maxWaits: RATE_LIMIT_MAX_WAITS }
+        payload: { attempt, waits: state.rateLimitWaits - 1, maxWaits }
       });
       return false;
     }
     const { resumeAt, source } = resolveRateLimitResumeAt(resetAt, state.chainStartedAtIso);
+    if (failoverEnabled()) {
+      const project = deps.readDb().projects.find(p => p.id === projectId && p.userId === userId);
+      return failoverAfterLimit({
+        projectId, userId, sessionId, command, attempt, state,
+        limitedAdapter: currentAdapterOf(project),
+        resumeAt,
+        source: `${origin}_${source}`
+      });
+    }
     await deps.upsertHostJob({
       projectId,
       userId,
