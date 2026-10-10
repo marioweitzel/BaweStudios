@@ -42,6 +42,14 @@
   animation: splash-rise .9s .15s ease both, splash-sheen 4.6s ease-in-out infinite;
 }
 
+/* "BaWe" en un tono mas oscuro del mismo plata, para leerse como dos partes: BaWe | Studio */
+.splash-title-bawe {
+  background: var(--splash-sheen), var(--splash-corner-shade), linear-gradient(180deg, #5a5c62 0%, #36373b 40%, #44454a 55%, #1f2023 100%);
+  background-size: 250% 100%, 100% 100%, 100% 100%; background-repeat: no-repeat;
+  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+  animation: splash-sheen 4.6s ease-in-out infinite;
+}
+
 .splash-loading { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 6px 0 0; font-size: 16px; color: var(--splash-muted); animation: splash-rise .9s .3s ease both; }
 .splash-spinner { width: 20px; height: 20px; flex: none; border-radius: 50%; border: 2px solid var(--splash-line); border-top-color: var(--splash-metal); animation: splash-spin .9s linear infinite; }
 
@@ -60,6 +68,6 @@
 
 @media (max-width: 480px) { .splash-title { font-size: 40px; } }
 @media (prefers-reduced-motion: reduce) {
-  .splash-logo .sheen, .splash-title, .splash-spinner { animation: none; }
+  .splash-logo .sheen, .splash-title, .splash-title-bawe, .splash-spinner { animation: none; }
   .splash-title { background: linear-gradient(180deg, #a5a7ad 0%, #6a6c72 40%, #83858b 55%, #3e3f44 100%); -webkit-background-clip: text; background-clip: text; }
 }
