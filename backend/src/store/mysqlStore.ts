@@ -99,7 +99,8 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
         scope_disclaimer_accepted_at DATETIME(3) NULL,
         security_notice_accepted_at DATETIME(3) NULL,
         security_strikes INT NOT NULL DEFAULT 0,
-        blocked_at DATETIME(3) NULL
+        blocked_at DATETIME(3) NULL,
+        preferred_host_adapter VARCHAR(20) NULL
       )
     `);
 
@@ -246,6 +247,16 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
       await dbPool.query(`ALTER TABLE users ADD COLUMN blocked_at DATETIME(3) NULL`);
     }
 
+    // Migracion incremental: CLI elegida por el cliente en el selector del
+    // sidebar (antes vivia en localStorage del navegador).
+    const [userHostColumn] = await dbPool.query<RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'preferred_host_adapter'`
+    );
+    if (userHostColumn.length === 0) {
+      await dbPool.query(`ALTER TABLE users ADD COLUMN preferred_host_adapter VARCHAR(20) NULL`);
+    }
+
     // Migracion incremental: projects ya existia sin estas columnas en
     // instalaciones previas. last_activity_at se pisa en cada mensaje de
     // Cambios/Soporte y en cada acceso a preview/historial.pdf de un proyecto
@@ -324,7 +335,8 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
         scopeDisclaimerAcceptedAt: row.scope_disclaimer_accepted_at ? mysqlDateToIso(row.scope_disclaimer_accepted_at) : null,
         securityNoticeAcceptedAt: row.security_notice_accepted_at ? mysqlDateToIso(row.security_notice_accepted_at) : null,
         securityStrikes: Number(row.security_strikes || 0),
-        blockedAt: row.blocked_at ? mysqlDateToIso(row.blocked_at) : null
+        blockedAt: row.blocked_at ? mysqlDateToIso(row.blocked_at) : null,
+        preferredHostAdapter: row.preferred_host_adapter ? String(row.preferred_host_adapter) : null
       })),
       projects: projectRows.map(row => ({
         id: String(row.id),
@@ -386,9 +398,9 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
 
       for (const user of snapshot.users) {
         await conn.query<ResultSetHeader>(
-          `INSERT INTO users (id,email,name,hash,workspace_user_id,scope_disclaimer_accepted_at,security_notice_accepted_at,security_strikes,blocked_at)
-           VALUES (?,?,?,?,?,?,?,?,?)
-           ON DUPLICATE KEY UPDATE email=VALUES(email), name=VALUES(name), hash=VALUES(hash), workspace_user_id=VALUES(workspace_user_id), scope_disclaimer_accepted_at=VALUES(scope_disclaimer_accepted_at), security_notice_accepted_at=VALUES(security_notice_accepted_at), security_strikes=VALUES(security_strikes), blocked_at=VALUES(blocked_at)`,
+          `INSERT INTO users (id,email,name,hash,workspace_user_id,scope_disclaimer_accepted_at,security_notice_accepted_at,security_strikes,blocked_at,preferred_host_adapter)
+           VALUES (?,?,?,?,?,?,?,?,?,?)
+           ON DUPLICATE KEY UPDATE email=VALUES(email), name=VALUES(name), hash=VALUES(hash), workspace_user_id=VALUES(workspace_user_id), scope_disclaimer_accepted_at=VALUES(scope_disclaimer_accepted_at), security_notice_accepted_at=VALUES(security_notice_accepted_at), security_strikes=VALUES(security_strikes), blocked_at=VALUES(blocked_at), preferred_host_adapter=VALUES(preferred_host_adapter)`,
           [
             user.id,
             user.email,
@@ -398,7 +410,8 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
             user.scopeDisclaimerAcceptedAt ? isoToMysqlDate(user.scopeDisclaimerAcceptedAt) : null,
             user.securityNoticeAcceptedAt ? isoToMysqlDate(user.securityNoticeAcceptedAt) : null,
             Number(user.securityStrikes || 0),
-            user.blockedAt ? isoToMysqlDate(user.blockedAt) : null
+            user.blockedAt ? isoToMysqlDate(user.blockedAt) : null,
+            user.preferredHostAdapter || null
           ]
         );
       }

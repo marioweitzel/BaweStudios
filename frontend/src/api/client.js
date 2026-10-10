@@ -113,6 +113,13 @@
     getAvailableHosts: function() {
       return request('/hosts/available', { headers: authHeaders() });
     },
+    setPreferredHost: function(hostAdapter) {
+      return request('/auth/preferred-host', {
+        method: 'PUT',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ hostAdapter: hostAdapter || null })
+      });
+    },
     acceptScopeDisclaimer: function() {
       return request('/auth/accept-disclaimer', { method: 'POST', headers: authHeaders() });
     },

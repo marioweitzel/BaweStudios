@@ -52,6 +52,8 @@ type RegisterWebHttpRoutesDeps = {
   writeDb: (db: any) => void;
 };
 
+const SELECTABLE_USER_HOST_ADAPTERS = ['claude-code', 'codex'];
+
 const registerRateLimiter = rateLimiter({
   windowMs: 60 * 60 * 1000,
   max: 5,
@@ -141,6 +143,22 @@ export function registerWebHttpRoutes(app: Application, deps: RegisterWebHttpRou
     const user = db.users.find((u: StoredUser) => u.id === (req as any).user.id);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
     user.securityNoticeAcceptedAt = new Date().toISOString();
+    deps.writeDb(db);
+    res.json(deps.publicUser(user));
+  });
+
+  // CLI preferida del cliente para sus proyectos nuevos (selector del sidebar).
+  // '' o null = automatica. opencode no es elegible (ver hostSelector.js).
+  app.put('/api/auth/preferred-host', deps.authMiddleware, (req, res) => {
+    const raw = req.body?.hostAdapter;
+    const hostAdapter = raw === null || raw === undefined || raw === '' ? null : String(raw);
+    if (hostAdapter !== null && !SELECTABLE_USER_HOST_ADAPTERS.includes(hostAdapter)) {
+      return res.status(400).json({ error: 'CLI no valida' });
+    }
+    const db = deps.readDb();
+    const user = db.users.find((u: StoredUser) => u.id === (req as any).user.id);
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    user.preferredHostAdapter = hostAdapter;
     deps.writeDb(db);
     res.json(deps.publicUser(user));
   });

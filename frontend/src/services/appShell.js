@@ -109,6 +109,7 @@ function enterDashboard(){
   document.getElementById('user-avatar').textContent=n.substring(0,2).toUpperCase()||'U';
   document.getElementById('app-landing').style.display='none';
   document.getElementById('app-dashboard').style.display='block';
+  if(window.applyUserHostPreference)window.applyUserHostPreference(currentUser);
   if(window.BaweSocket){
     window.BaweSocket.setAuthToken(token||'');
     window.BaweSocket.connect();

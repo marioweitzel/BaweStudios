@@ -28,7 +28,8 @@ export function createAuth(deps: AuthDeps) {
       name: user.name,
       workspace_user_id: user.workspace_user_id || deps.workspaceUserId(user.id),
       scope_disclaimer_accepted_at: user.scopeDisclaimerAcceptedAt || null,
-      security_notice_accepted_at: user.securityNoticeAcceptedAt || null
+      security_notice_accepted_at: user.securityNoticeAcceptedAt || null,
+      preferred_host_adapter: user.preferredHostAdapter || null
     };
   }
 
