@@ -448,8 +448,9 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     setExecutionState(safeProjectId, socketUser?.id, activeSessionId, 'IDLE', socket.id);
     console.log(`[BACKEND → FRONTEND] emitiendo agent-question (error): ${text}`);
     socket.emit('host:pending', { pending: false });
-    appendChatHistoryMessage(activeChatHistoryId, socketUser?.id, 'agent', text);
-    if (safeProjectId) saveChatMessage(safeProjectId, 'agent', text);
+    // El error se muestra pero no se guarda: ni en el historial del chat ni en los
+    // mensajes del proyecto, porque de ahi sale el PDF (igual que emitAgentNotice).
+    // Queda en el evento host.error.visible para diagnostico.
     emitProjectUpdate(socket, safeProjectId, socketUser?.id);
     socket.emit('agent-question', { question: text, chatHistoryId: activeChatHistoryId });
   }
