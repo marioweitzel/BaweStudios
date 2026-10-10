@@ -39,7 +39,6 @@ const INTERNAL_PATTERNS: RegExp[] = [
   /(?:^|[\s`'"(\/\\])\.(?:agents|bawe)(?:[\/\\]|\b)/i,
   /\b(?:log-preguntas|task-log|project-context|component-queue|skill-dispatcher|app-structure)\b/i,
   /\[\[\/?BAWE_[A-Z_]*\]\]/,
-  /\bBaWe\b/,
   /\bread-only\b/i,
   /\b(?:entorno|modo)\b[^.\n]{0,40}\b(?:sandbox|lectura|escritura)\b/i,
   /\b(?:pregunta|respuesta|paso|etapa|fase)\s+(?:v[aá]lida\s+)?(?:de\s+)?[AB]\d{1,2}[a-z]?(?:-\d+)?\b/i,
