@@ -32,7 +32,7 @@ function renderCentralProjectInfo(p,options){
       msgs.innerHTML='';
       renderDeliveryPanel(p);
     }else{
-      msgs.innerHTML='<div class="ch-empty" id="chat-empty"><div class="ch-empty-ico"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg></div><h3>'+esc(view.centralTitle)+'</h3><p>'+esc(view.centralText||'')+'</p></div>';
+      msgs.innerHTML='<div class="ch-empty" id="chat-empty"><h3>'+esc(view.centralTitle)+'</h3><p>'+esc(view.centralText||'')+'</p></div>';
     }
   }
   if(view.execution_state==='RUNNING'||view.execution_state==='STOPPING'){

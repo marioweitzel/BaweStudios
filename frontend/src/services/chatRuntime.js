@@ -328,7 +328,7 @@ function resetChat(){
 
   document.getElementById('chat-proj-sub').textContent='Estableciendo parametros de arquitectura';
   var msgs=document.getElementById('chatMessages');
-  msgs.innerHTML='<div class="ch-empty" id="chat-empty"><div class="ch-empty-ico"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg></div><h3>Iniciá tu nuevo proyecto web</h3><p>Escribí <code>"comenzar"</code> para iniciar el ADN de tu nuevo proyecto o seleccioná uno del historial.</p></div>';
+  msgs.innerHTML='<div class="ch-empty" id="chat-empty"><h3>Iniciá tu nuevo proyecto web</h3><p>Escribí <code>"comenzar"</code> para iniciar el ADN de tu nuevo proyecto o seleccioná uno del historial.</p></div>';
   setUiLocked(false);
   document.querySelectorAll('.hist-item').forEach(function(i){i.classList.remove('active');});
 }
@@ -457,20 +457,31 @@ document.getElementById('p-empty').querySelector('.btn-build')&&document.getElem
 
 // ---- INIT ----
 // Estado de la verificacion de sesion: 'loading' | 'retry' | 'hidden' (entro al panel) | 'none' (muestra el login).
+var SPLASH_MIN_MS=4000;
 function showSessionCheck(mode){
-  var check=document.getElementById('session-check');
+  var splash=document.getElementById('boot-splash');
   var landing=document.getElementById('app-landing');
   var actions=document.getElementById('session-check-actions');
   var text=document.getElementById('session-check-text');
-  if(!check||!landing)return;
-  if(mode==='hidden'){check.style.display='none';return;}
-  if(mode==='none'){check.style.display='none';landing.style.display='';return;}
+  if(!splash||!landing)return;
+  if(mode==='hidden'||mode==='none'){
+    // La pantalla de marca dura al menos SPLASH_MIN_MS desde que se abrio la pagina; si la carga real tarda mas, dura lo que tarde.
+    var wait=Math.max(0,SPLASH_MIN_MS-performance.now());
+    setTimeout(function(){
+      if(mode==='none')landing.style.display='';
+      splash.classList.add('leaving');
+      setTimeout(function(){splash.style.display='none';},700);
+    },wait);
+    return;
+  }
+  splash.style.display='';
+  splash.classList.remove('leaving');
   landing.style.display='none';
-  check.style.display='flex';
+  splash.classList.toggle('is-retry',mode==='retry');
   actions.style.display=mode==='retry'?'flex':'none';
   text.textContent=mode==='retry'
     ?'No pudimos conectar con BaweStudio. Revisá tu conexión e intentá de nuevo.'
-    :'Cargando tu sesión…';
+    :'Cargando…';
 }
 function backToLogin(){
   window.BaweState.clearAuthSession();token=null;currentUser=null;

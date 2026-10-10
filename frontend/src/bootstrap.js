@@ -54,7 +54,6 @@ ${loaded.appDialog}`;
     try {
       if (localStorage.getItem('bw_token')) {
         document.getElementById('app-landing').style.display = 'none';
-        document.getElementById('session-check').style.display = 'flex';
       }
     } catch (e) { /* sin acceso a localStorage: se muestra el login */ }
 
@@ -81,6 +80,8 @@ ${loaded.appDialog}`;
     await loadScript('/src/socket/socketEvents.js');
   } catch (error) {
     console.error(error);
+    const splash = document.getElementById('boot-splash');
+    if (splash) splash.remove();
     root.innerHTML = '<main class="l-main" id="main"><p>No se pudo cargar BaweStudio.</p></main>';
   }
 })();

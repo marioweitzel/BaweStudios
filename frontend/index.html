@@ -4,14 +4,30 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>BaweStudio | Motor de Sitios y Apps Web Autonomas</title>
+<link rel="icon" type="image/svg+xml" href="/src/assets/favicon.svg"/>
 
 <link rel="stylesheet" href="/src/styles/base.css"/>
 <link rel="stylesheet" href="/src/styles/layout.css"/>
 <link rel="stylesheet" href="/src/styles/app.css"/>
+<link rel="stylesheet" href="/src/styles/splash.css"/>
 <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Saltar al contenido</a>
+<!-- Pantalla de arranque: se ve desde el primer instante y se retira cuando la sesion queda resuelta (ver showSessionCheck en chatRuntime.js). -->
+<div id="boot-splash" class="splash" role="status" aria-live="polite" aria-label="Cargando BaweStudio">
+  <div class="splash-logo">
+    <img src="/src/assets/logo-metal.svg" alt="BaWe">
+    <span class="sheen"></span>
+  </div>
+  <h1 class="splash-title">Studio</h1>
+  <p class="splash-loading"><span class="splash-spinner"></span><span id="session-check-text">Cargando…</span></p>
+  <div id="session-check-actions" class="splash-actions">
+    <button type="button" class="btn-submit" id="session-retry">Reintentar</button>
+    <button type="button" class="splash-link" id="session-login">Iniciar sesión de nuevo</button>
+  </div>
+  <p class="splash-copy">© 2026 BaWe - Bado &amp; Weitzel. Todos los derechos reservados.</p>
+</div>
 <div id="app-root"></div>
 <script src="/src/bootstrap.js"></script>
 </body>
