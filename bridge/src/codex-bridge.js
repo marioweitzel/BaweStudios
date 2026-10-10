@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 const { detectRateLimit } = require('./rateLimitDetect');
+const { readCodexLimit } = require('./codexRolloutLimit');
 const { requireAuth } = require('./bridge-auth');
 
 const PORT = Number(process.env.CODEX_BRIDGE_PORT || 5000);
@@ -342,7 +343,25 @@ function runCodex({ sessionId, message, cwd, command, args, timeoutMs, rememberS
       clearTimeout(timer);
       clearActiveProcess();
 
-      const limitInfo = detectRateLimit(stdout) || detectRateLimit(stderr);
+      // Limite de uso: el texto del aviso (respaldo) y el rollout de Codex
+      // (codigo estructurado usage_limit_exceeded + hora absoluta resets_at).
+      let limitInfo = detectRateLimit(stdout) || detectRateLimit(stderr);
+      let limitSource = limitInfo ? 'text' : null;
+      const earlyOutput = extractCodexOutput(stdout);
+      if (limitInfo || code !== 0 || !earlyOutput.text) {
+        const fromRollout = readCodexLimit({
+          threadId: earlyOutput.threadId || codexThreadId,
+          sinceMs: startedAt - 5000,
+          textResetAtIso: limitInfo?.resetAt || null
+        });
+        if (!limitInfo && fromRollout.limited) {
+          limitInfo = { isLimited: true, resetAt: fromRollout.resetAt, raw: 'usage_limit_exceeded (rollout)' };
+          limitSource = 'rollout';
+        } else if (limitInfo && fromRollout.resetAt) {
+          limitInfo = { ...limitInfo, resetAt: fromRollout.resetAt };
+          limitSource = 'text+rollout';
+        }
+      }
       if (limitInfo) {
         rateLimitedUntil = limitInfo.resetAt;
         runState.status = 'rate_limited';
@@ -356,6 +375,7 @@ function runCodex({ sessionId, message, cwd, command, args, timeoutMs, rememberS
           sessionId: sessionId || null,
           pid: proc.pid || null,
           resetAt: limitInfo.resetAt,
+          limitSource,
           raw: limitInfo.raw,
           durationMs: Date.now() - startedAt
         });
