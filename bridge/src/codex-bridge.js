@@ -80,8 +80,13 @@ function writeBridgeLog(event) {
       JSON.stringify({ timestamp: new Date().toISOString(), ...event }) + '\n',
       'utf8'
     );
-  } catch {
-    // Logging must not affect bridge behavior.
+  } catch (error) {
+    // Logging must not affect bridge behavior, but un fallo no puede ser mudo:
+    // se avisa una sola vez por stderr (journal) para que no pase inadvertido.
+    if (!writeBridgeLog.warned) {
+      writeBridgeLog.warned = true;
+      console.error(`[bridge-log] no se puede escribir ${BRIDGE_LOG_PATH}: ${error && error.message}`);
+    }
   }
 }
 
