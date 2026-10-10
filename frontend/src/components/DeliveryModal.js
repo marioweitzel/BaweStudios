@@ -25,7 +25,7 @@ function setDeliveryModal(title,text,actions,project,showRating){
   var password=project&&project.zipPassword;
   if(password){
     passBox.hidden=false;
-    passBox.innerHTML='<span>Password del ZIP</span><code>'+esc(password)+'</code><small>No compartas esta contrasena con personas no autorizadas.</small>';
+    passBox.innerHTML='<span>Contraseña del ZIP</span><code>'+esc(password)+'</code><small>No compartas esta contraseña con personas no autorizadas.</small>';
   }else{
     passBox.hidden=true;
     passBox.innerHTML='';
@@ -53,13 +53,13 @@ function setDeliveryModal(title,text,actions,project,showRating){
 
 function showDeliveryReadyModal(project){
   var name=(project&&project.project_name)||(project&&project.name)||'tu proyecto';
-  var warning=(project&&project.deliveryWarning)||'Conserva el password del ZIP y no lo compartas con personas no autorizadas.';
+  var warning=(project&&project.deliveryWarning)||'Guardá la contraseña del ZIP y no la compartas con personas no autorizadas.';
   setDeliveryModal(
     'Proyecto listo',
     'Gracias por confiar en BaweStudio y por tu tiempo durante la entrevista. Para ver la preview y descargar el ZIP tambien podes entrar en Proyectos y usar las acciones del proyecto finalizado.',
     [
       {label:'Descargar ZIP',kind:'primary',onClick:function(){downloadProject(project.id,name);}},
-      {label:'Guardar password',kind:'secondary',onClick:function(){downloadPasswordFile(project);}},
+      {label:'Guardar contraseña',kind:'secondary',onClick:function(){downloadPasswordFile(project);}},
       {label:'Ver web',kind:'secondary',onClick:function(){previewProject(project.id,name);}},
       {label:'Ir a Proyectos',kind:'secondary',onClick:function(){hideDeliveryModal();goToProjects();}},
       {label:'Cerrar',kind:'secondary',onClick:function(){hideDeliveryModal();}}
@@ -73,9 +73,9 @@ function showDeliveryWarningAfterDownload(project){
   var name=(project&&project.project_name)||(project&&project.name)||'tu proyecto';
   setDeliveryModal(
     'Descarga iniciada',
-    'El ZIP de '+name+' esta cifrado. Conserva el password en un lugar seguro y no lo compartas con personas no autorizadas.',
+    'El ZIP de '+name+' está cifrado. Guardá la contraseña en un lugar seguro y no la compartas con personas no autorizadas.',
     [
-      {label:'Guardar password',kind:'primary',onClick:function(){downloadPasswordFile(project);}},
+      {label:'Guardar contraseña',kind:'primary',onClick:function(){downloadPasswordFile(project);}},
       {label:'Cerrar',kind:'secondary',onClick:function(){hideDeliveryModal();}}
     ],
     project,
@@ -86,6 +86,6 @@ function showDeliveryWarningAfterDownload(project){
 function downloadPasswordFile(project){
   if(!project||!project.zipPassword){showAppNotice('La contraseña del archivo no está disponible. Actualizá la lista de proyectos e intentá nuevamente.');return;}
   var name=(project.project_name||project.name||'proyecto').replace(/[^\w.-]+/g,'_');
-  var text='ZIP_PASSWORD='+project.zipPassword+'\n\n'+(project.deliveryWarning||'No compartas esta contrasena con personas no autorizadas.')+'\n';
+  var text='ZIP_PASSWORD='+project.zipPassword+'\n\n'+(project.deliveryWarning||'No compartas esta contraseña con personas no autorizadas.')+'\n';
   saveTextFile(text,name+'-password.txt');
 }
