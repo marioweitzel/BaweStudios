@@ -59,7 +59,7 @@ socket.on('resume:invalid-command', function(data) {
 socket.on('new-project-blocked', function(data) {
   setPendingBubble(false);
   var project=data&&data.project?updateKnownProject(data.project):null;
-  alert((data&&data.message)||newProjectBlockedMessage());
+  showAppNotice((data&&data.message)||newProjectBlockedMessage());
   if(project)openChatProj(project.id,project.name);
   else setUiLocked(false);
 });

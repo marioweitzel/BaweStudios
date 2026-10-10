@@ -202,28 +202,28 @@ function projectDisplayName(project, fallback){
 function downloadProject(projId,projName){
   window.BaweApi.downloadProject(projId)
   .then(function(result){
-    if(!result.ok){alert('Error: '+((result.data&&result.data.error)||'No se pudo descargar el ZIP.'));return;}
+    if(!result.ok){showAppNotice((result.data&&result.data.error)||'No se pudo descargar el ZIP.');return;}
     var project=findProjectById(projId)||{id:projId,name:projName};
     saveBlob(result.blob,result.filename||((projectDisplayName(project,projName))+'.zip'));
     showDeliveryWarningAfterDownload(project);
-  }).catch(function(err){alert('Error: '+err.message);});
+  }).catch(function(err){showAppNotice('No se pudo completar la acción. Intentá de nuevo.');});
 }
 
 function previewProject(projId,projName){
   window.BaweApi.previewProject(projId)
   .then(function(result){var j=result.data;
-    if(!result.ok){alert('Error: '+(j.error||'unknown'));return;}
+    if(!result.ok){showAppNotice(j.error||'No se pudo completar la acción.');return;}
     if(j.preview.available&&j.preview.url){showPreviewModal(projId,projName,j.preview.url);}
-    else{alert(j.preview.message);}
-  }).catch(function(err){alert('Error: '+err.message);});
+    else{showAppNotice(j.preview.message,'Vista previa');}
+  }).catch(function(err){showAppNotice('No se pudo completar la acción. Intentá de nuevo.');});
 }
 
 function downloadChatHistoryPdf(projId,projName){
   window.BaweApi.downloadHistoryPdf(projId)
   .then(function(result){
-    if(!result.ok){alert('Error: '+((result.data&&result.data.error)||'No se pudo descargar el historial.'));return;}
+    if(!result.ok){showAppNotice((result.data&&result.data.error)||'No se pudo descargar el historial.');return;}
     saveBlob(result.blob,result.filename||((projName||'proyecto')+'-historial.pdf'));
-  }).catch(function(err){alert('Error: '+err.message);});
+  }).catch(function(err){showAppNotice('No se pudo completar la acción. Intentá de nuevo.');});
 }
 
 function downloadPasswordForProject(projId){
@@ -237,10 +237,11 @@ function showReadyModalForProject(projId){
 }
 
 async function editProject(projId,currentName){
-  var newName=prompt('Editar proyecto:',currentName);
+  var newName=await askAppText('Editar proyecto','Nombre del proyecto:',currentName);
+  if(newName)newName=newName.trim();
   if(!newName||newName===currentName)return;
   window.BaweApi.updateProject(projId,{name:newName})
-  .then(function(result){var j=result.data;if(!result.ok){alert('Error: '+(j.error||'unknown'));return;}loadProjects();})
-  .catch(function(err){alert('Error: '+err.message);});
+  .then(function(result){var j=result.data;if(!result.ok){showAppNotice(j.error||'No se pudo completar la acción.');return;}loadProjects();})
+  .catch(function(err){showAppNotice('No se pudo completar la acción. Intentá de nuevo.');});
 }
 

@@ -11,7 +11,8 @@
     previewModal: '/src/components/PreviewModal.html',
     scopeDisclaimerModal: '/src/components/ScopeDisclaimerModal.html',
     securityNoticeModal: '/src/components/SecurityNoticeModal.html',
-    hackWarningModal: '/src/components/HackWarningModal.html'
+    hackWarningModal: '/src/components/HackWarningModal.html',
+    appDialog: '/src/components/AppDialog.html'
   };
 
   function loadScript(src) {
@@ -45,7 +46,8 @@
       .replace('{{CHAT_VIEW}}', loaded.chat);
 
     root.innerHTML = `${loaded.auth}\n${dashboard}\n${loaded.deleteModal}\n${loaded.deliveryModal}\n${loaded.previewModal}\n${loaded.scopeDisclaimerModal}\n${loaded.securityNoticeModal}
-${loaded.hackWarningModal}`;
+${loaded.hackWarningModal}
+${loaded.appDialog}`;
 
     // Con token guardado no se muestra el login mientras se verifica la sesion
     // (ver init() en chatRuntime.js).
@@ -65,6 +67,7 @@ ${loaded.hackWarningModal}`;
     await loadScript('/src/components/ScopeDisclaimerModal.js');
     await loadScript('/src/components/SecurityNoticeModal.js');
     await loadScript('/src/components/HackWarningModal.js');
+    await loadScript('/src/components/AppDialog.js');
     await loadScript('/src/services/appShell.js');
     await loadScript('/src/services/hostSelector.js');
     await loadScript('/src/components/ProjectCard.js');

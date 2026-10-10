@@ -196,7 +196,7 @@ function newProjectBlockedMessage(){
 function blockNewProjectIfNeeded(){
   var blocking=firstUnfinishedProject(null);
   if(!blocking)return false;
-  alert(newProjectBlockedMessage());
+  showAppNotice(newProjectBlockedMessage());
   openChatProj(blocking.id,blocking.name);
   return true;
 }

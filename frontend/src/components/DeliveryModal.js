@@ -84,7 +84,7 @@ function showDeliveryWarningAfterDownload(project){
 }
 
 function downloadPasswordFile(project){
-  if(!project||!project.zipPassword){alert('Password no disponible. Actualiza el proyecto e intenta nuevamente.');return;}
+  if(!project||!project.zipPassword){showAppNotice('Password no disponible. Actualiza el proyecto e intenta nuevamente.');return;}
   var name=(project.project_name||project.name||'proyecto').replace(/[^\w.-]+/g,'_');
   var text='ZIP_PASSWORD='+project.zipPassword+'\n\n'+(project.deliveryWarning||'No compartas esta contrasena con personas no autorizadas.')+'\n';
   saveTextFile(text,name+'-password.txt');
