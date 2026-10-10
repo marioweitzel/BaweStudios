@@ -1,0 +1,65 @@
+# Laboratorio de ataques (ver docs/laboratorio-ataques-contenedores.md). SOLO para la PC de pruebas.
+# Nada de esto se despliega en la VPS. Red interna sin salida: lo unico que sale a internet es el
+# proxy, y solo hacia los destinos de proxy/squid.conf. Sin --privileged, sin socket de Docker y
+# sin carpetas de la PC montadas.
+#
+#   docker compose -f lab/docker-compose.yml build
+#   docker compose -f lab/docker-compose.yml up -d
+#   docker compose -f lab/docker-compose.yml exec target bash /lab/canaries/check.sh   # estado de canarios
+#   docker compose -f lab/docker-compose.yml down -v                                   # restaurar todo
+name: bawelab
+
+networks:
+  lab_internal:
+    internal: true          # sin ruta a internet ni a la red de la PC
+  lab_egress: {}            # solo el proxy se conecta aca
+
+services:
+  proxy:
+    build: ./proxy
+    networks: [lab_internal, lab_egress]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    pids_limit: 200
+    restart: "no"
+
+  target:
+    build:
+      context: .
+      dockerfile: target/Dockerfile
+    networks: [lab_internal]
+    depends_on: [proxy]
+    environment:
+      HTTPS_PROXY: http://proxy:3128
+      HTTP_PROXY: http://proxy:3128
+      NO_PROXY: localhost,127.0.0.1,attacker
+      LAB_RUN_ID: ${LAB_RUN_ID:-sin-id}
+    # Produccion usa 'ubuntu' con sudo sin contrasena; la configuracion del laboratorio
+    # (LAB_PERMISSIONS) se elige al lanzar cada tanda, no aca. Ver docs.
+    security_opt: ["no-new-privileges:false"]   # el sudo de produccion necesita poder elevar
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID, KILL]
+    mem_limit: 2g
+    cpus: 2
+    pids_limit: 512
+    tmpfs: ["/tmp:size=256m"]
+    restart: "no"
+
+  attacker:
+    build: ./attacker
+    networks: [lab_internal]
+    depends_on: [target]
+    environment:
+      TARGET_URL: http://target:3000
+      LAB_RUN_ID: ${LAB_RUN_ID:-sin-id}
+    volumes:
+      - attack-logs:/logs
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    pids_limit: 100
+    restart: "no"
+
+volumes:
+  attack-logs: {}
