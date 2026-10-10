@@ -90,8 +90,9 @@ function resolveRateLimitResumeAt(resetAtIso: string | null | undefined, chainSt
 export function createEditJobService(deps: EditJobDeps) {
   const editJobs = new Map<string, Promise<void>>();
 
-  async function getHostRuntimeStatus(sessionId: string): Promise<HostRuntimeStatus | null> {
-    return deps.hostRuntime.getStatus(sessionId);
+  // El proyecto decide a que CLI se le consulta el estado (preferredHostAdapter).
+  async function getHostRuntimeStatus(sessionId: string, project?: StoredProject | null): Promise<HostRuntimeStatus | null> {
+    return deps.hostRuntime.getStatus(sessionId, project);
   }
 
   function isHostStatusActive(status: HostRuntimeStatus | null | undefined) {
@@ -140,7 +141,7 @@ export function createEditJobService(deps: EditJobDeps) {
     const { projectId, userId, sessionId, command, attempt } = args;
     let lastStatus = '';
     while (true) {
-      const hostStatus = await getHostRuntimeStatus(sessionId);
+      const hostStatus = await getHostRuntimeStatus(sessionId, deps.readDb().projects.find(p => p.id === projectId && p.userId === userId));
       if (isHostStatusActive(hostStatus)) {
         await deps.upsertHostJob({
           projectId,
@@ -281,7 +282,7 @@ export function createEditJobService(deps: EditJobDeps) {
         existingJob?.bs_session_id &&
         (existingJob.status === 'edit_running' || existingJob.status === 'edit_running_waiting')
       ) {
-        const hostStatus = await getHostRuntimeStatus(existingJob.bs_session_id);
+        const hostStatus = await getHostRuntimeStatus(existingJob.bs_session_id, project);
         if (isHostStatusActive(hostStatus)) {
           await deps.upsertHostJob({
             projectId,
@@ -448,7 +449,7 @@ export function createEditJobService(deps: EditJobDeps) {
           if (hostResponse.retry) continue;
           return;
         }
-        const hostStatus = await getHostRuntimeStatus(sessionId);
+        const hostStatus = await getHostRuntimeStatus(sessionId, project);
         if (isHostStatusActive(hostStatus)) {
           await deps.upsertHostJob({
             projectId,

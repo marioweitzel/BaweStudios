@@ -4,6 +4,8 @@ export type HostRuntimeProject = {
   name?: string;
   project_name?: string;
   project_path?: string;
+  // CLI elegido por el cliente para este proyecto ('codex' | 'claude-code' | 'opencode').
+  preferredHostAdapter?: string | null;
 };
 
 export type HostRuntimeStatus = {
@@ -44,7 +46,7 @@ export type HostRuntimeOptions = {
 export interface HostRuntime {
   readonly hostKind: string;
   readonly pollIntervalMs: number;
-  getStatus(sessionId: string): Promise<HostRuntimeStatus | null>;
+  getStatus(sessionId: string, project?: HostRuntimeProject | null): Promise<HostRuntimeStatus | null>;
   isStatusActive(status: HostRuntimeStatus | null | undefined): boolean;
   sendCommand(project: HostRuntimeProject, sessionId: string, message: string, timeoutMs?: number): Promise<HostRuntimeCommandResult>;
   deleteProject(project: HostRuntimeProject, sessionId: string, workspaceUserId: string, projectName: string, timeoutMs?: number): Promise<HostRuntimeDeleteResult>;
