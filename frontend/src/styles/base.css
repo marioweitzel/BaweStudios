@@ -39,3 +39,8 @@ body{font-family:'Inter',sans-serif;background:#0A0A0A;color:#f8fafc;min-height:
 .a-msg.show{display:flex;}
 .a-msg.error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#f87171;}
 .a-msg.success{background:rgba(0,217,142,.1);border:1px solid rgba(0,217,142,.2);color:#00D98E;}
+.session-check{display:none;min-height:100vh;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;color:#9ca3af;font-size:.9rem;}
+.session-check-actions{display:none;flex-direction:column;gap:8px;width:100%;max-width:260px;}
+.session-check-actions .btn-submit{margin-top:0;}
+.session-link{background:none;border:0;color:#9ca3af;font:inherit;cursor:pointer;padding:8px;}
+.session-link:hover{text-decoration:underline;}

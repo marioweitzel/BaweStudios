@@ -448,13 +448,38 @@ document.getElementById('chatLogoInput').addEventListener('change',function(){
 document.getElementById('p-empty').querySelector('.btn-build')&&document.getElementById('p-empty').querySelector('.btn-build').addEventListener('click',function(){document.getElementById('nav-chat').click();});
 
 // ---- INIT ----
-function init(){
-  if(token){
-    window.BaweApi.me()
-    .then(function(result){
-      if(result.ok){currentUser=result.data;window.BaweState.setAuthSession(token,currentUser);enterDashboard();}
-      else{window.BaweState.clearAuthSession();token=null;}
-    }).catch(function(){window.BaweState.clearAuthSession();token=null;});
-  }
+// Estado de la verificacion de sesion: 'loading' | 'retry' | 'hidden' (entro al panel) | 'none' (muestra el login).
+function showSessionCheck(mode){
+  var check=document.getElementById('session-check');
+  var landing=document.getElementById('app-landing');
+  var actions=document.getElementById('session-check-actions');
+  var text=document.getElementById('session-check-text');
+  if(!check||!landing)return;
+  if(mode==='hidden'){check.style.display='none';return;}
+  if(mode==='none'){check.style.display='none';landing.style.display='';return;}
+  landing.style.display='none';
+  check.style.display='flex';
+  actions.style.display=mode==='retry'?'flex':'none';
+  text.textContent=mode==='retry'
+    ?'No pudimos conectar con BaweStudio. Revisá tu conexión e intentá de nuevo.'
+    :'Cargando tu sesión…';
 }
+function backToLogin(){
+  window.BaweState.clearAuthSession();token=null;currentUser=null;
+  showSessionCheck('none');
+}
+// El token solo se descarta si el servidor lo rechaza (401/403). Una caida de red,
+// un reinicio del servidor (502/503/504) o un timeout no cierran la sesion.
+function init(){
+  if(!token){showSessionCheck('none');return;}
+  showSessionCheck('loading');
+  window.BaweApi.me()
+  .then(function(result){
+    if(result.ok){currentUser=result.data;window.BaweState.setAuthSession(token,currentUser);enterDashboard();showSessionCheck('hidden');return;}
+    if(result.status===401||result.status===403){backToLogin();return;}
+    showSessionCheck('retry');
+  }).catch(function(){showSessionCheck('retry');});
+}
+document.getElementById('session-retry').addEventListener('click',init);
+document.getElementById('session-login').addEventListener('click',backToLogin);
 init();

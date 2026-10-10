@@ -47,6 +47,15 @@
     root.innerHTML = `${loaded.auth}\n${dashboard}\n${loaded.deleteModal}\n${loaded.deliveryModal}\n${loaded.previewModal}\n${loaded.scopeDisclaimerModal}\n${loaded.securityNoticeModal}
 ${loaded.hackWarningModal}`;
 
+    // Con token guardado no se muestra el login mientras se verifica la sesion
+    // (ver init() en chatRuntime.js).
+    try {
+      if (localStorage.getItem('bw_token')) {
+        document.getElementById('app-landing').style.display = 'none';
+        document.getElementById('session-check').style.display = 'flex';
+      }
+    } catch (e) { /* sin acceso a localStorage: se muestra el login */ }
+
     await loadScript('/src/state/appState.js');
     await loadScript('/src/api/client.js');
     await loadScript('/src/socket/socketClient.js');
