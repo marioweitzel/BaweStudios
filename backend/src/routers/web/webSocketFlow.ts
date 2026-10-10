@@ -174,6 +174,9 @@ type WebSocketFlowDeps = {
   userFromJwtToken: (token: string) => StoredUser | null;
 };
 
+// Cuanto puede seguir un turno huerfano (pestana cerrada) antes de cerrarse a la fuerza; 0 = comportamiento anterior (cortar al desconectar).
+const DETACHED_TURN_MAX_MS = Number(process.env.HOST_DETACHED_TURN_MAX_MS ?? 20 * 60 * 1000);
+
 export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDeps) {
   const {
     activeProjects,
@@ -197,7 +200,7 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     reconcileProjectStatus,
     recordHostTurnEvent,
     saveChatMessage,
-    setExecutionState,
+    setExecutionState: setExecutionStateBase,
     setPendingAnswer,
     setPendingQuestion,
     registerSecurityStrike,
@@ -237,6 +240,14 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     let safeProjectId: string | null = null;
     let activeChatHistoryId: string | null = null;
     let hostBusy = false;
+    // Turno en curso cuando se cerro la pestana: el host sigue hasta terminar el turno (la respuesta
+    // queda guardada en el historial) y recien entonces se cierra la sesion. Ver 'disconnect'.
+    let detachedTurn = false;
+    let detachedTimer: NodeJS.Timeout | null = null;
+    const setExecutionState: typeof setExecutionStateBase = (projectId, userId, sessionId, state, socketId) => {
+      setExecutionStateBase(projectId, userId, sessionId, state, socketId);
+      if (detachedTurn && state !== 'RUNNING') setTimeout(() => settleDetachedTurn('turn_settled'), 0);
+    };
     let pendingProjectNameCapture = false;
     let pendingProjectName: string | null = null;
     let pendingProjectNameAnswer: string | null = null;
@@ -1580,28 +1591,85 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
     }
   });
   
+  async function stopHostAfterDisconnect(sessionId: string, projectId: string | null, quiet = false) {
+    console.log(`[Socket] Deteniendo host por desconexion: sessionId=${sessionId} projectId=${projectId || '(sin proyecto)'}`);
+    try {
+      if (!quiet && projectId && socketUser?.id) {
+        setExecutionState(projectId, socketUser.id, sessionId, 'STOPPING', socket.id);
+      }
+      await hostManager.stop(sessionId);
+      clearSocketRuntimeState(projectId);
+      if (!quiet && projectId && socketUser?.id) {
+        setExecutionState(projectId, socketUser.id, sessionId, 'IDLE', socket.id);
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error(`[Socket] Error deteniendo host por desconexion: ${error.message}`);
+      if (projectId && socketUser?.id) {
+        setExecutionState(projectId, socketUser.id, sessionId, 'STOPPED', socket.id);
+      }
+    }
+  }
+
+  function releaseSocketProjects() {
+    for (const [projectId, proj] of activeProjects) {
+      if (proj.socket?.id === socket.id) {
+        if (proj.watcher) proj.watcher.close();
+        activeProjects.delete(projectId);
+      }
+    }
+  }
+
+  // Cierra la sesion de un turno que quedo huerfano (el cliente cerro la pestana) una vez que el
+  // turno termino -- o por tiempo maximo. La respuesta ya quedo guardada por el flujo normal.
+  function settleDetachedTurn(reason: string) {
+    if (!detachedTurn) return;
+    detachedTurn = false;
+    if (detachedTimer) { clearTimeout(detachedTimer); detachedTimer = null; }
+    const sessionId = activeSessionId;
+    const projectId = safeProjectId;
+    recordHostTurnEvent({
+      projectId,
+      userId: socketUser?.id,
+      sessionId,
+      eventType: 'session.detached_turn_closed',
+      payload: { reason }
+    });
+    releaseSocketProjects();
+    if (sessionId && hostManager.getActiveSessionId() === sessionId) {
+      void stopHostAfterDisconnect(sessionId, projectId, reason === 'turn_settled');
+    } else {
+      clearSocketRuntimeState(projectId);
+    }
+  }
+
   socket.on('disconnect', async () => {
     console.log(`[Socket] Cliente desconectado: ${socket.id}`);
     const disconnectSessionId = activeSessionId;
     const disconnectProjectId = safeProjectId;
-    if (disconnectSessionId && hostManager.getActiveSessionId() === disconnectSessionId) {
-      console.log(`[Socket] Deteniendo host por desconexion: sessionId=${disconnectSessionId} projectId=${disconnectProjectId || '(sin proyecto)'}`);
-      try {
-        if (disconnectProjectId && socketUser?.id) {
-          setExecutionState(disconnectProjectId, socketUser.id, disconnectSessionId, 'STOPPING', socket.id);
-        }
-        await hostManager.stop(disconnectSessionId);
-        clearSocketRuntimeState(disconnectProjectId);
-        if (disconnectProjectId && socketUser?.id) {
-          setExecutionState(disconnectProjectId, socketUser.id, disconnectSessionId, 'IDLE', socket.id);
-        }
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        console.error(`[Socket] Error deteniendo host por desconexion: ${error.message}`);
-        if (disconnectProjectId && socketUser?.id) {
-          setExecutionState(disconnectProjectId, socketUser.id, disconnectSessionId, 'STOPPED', socket.id);
-        }
-      }
+    const sessionStillActive = !!disconnectSessionId && hostManager.getActiveSessionId() === disconnectSessionId;
+    const turnInFlight = sessionStillActive
+      && hostBusy
+      && !!disconnectProjectId
+      && !activeSessionIsSupport
+      && !activeSessionIsEdit
+      && getExecutionState(disconnectProjectId) === 'RUNNING';
+    if (turnInFlight && DETACHED_TURN_MAX_MS > 0) {
+      detachedTurn = true;
+      recordHostTurnEvent({
+        projectId: disconnectProjectId,
+        userId: socketUser?.id,
+        sessionId: disconnectSessionId,
+        eventType: 'session.detached_turn_kept',
+        payload: { maxMs: DETACHED_TURN_MAX_MS }
+      });
+      console.log(`[Socket] Cliente desconectado con turno en curso: el host sigue hasta terminar (max ${DETACHED_TURN_MAX_MS} ms) sessionId=${disconnectSessionId}`);
+      detachedTimer = setTimeout(() => settleDetachedTurn('max_wait'), DETACHED_TURN_MAX_MS);
+      debugPanel.setState('idle', 'Socket desconectado con turno en curso');
+      return;
+    }
+    if (sessionStillActive && disconnectSessionId) {
+      await stopHostAfterDisconnect(disconnectSessionId, disconnectProjectId);
     }
     // Limpiar watchers y proyectos
     for (const [projectId, proj] of activeProjects) {
