@@ -179,6 +179,11 @@ socket.on('edit-event', function(data) {
   }
   if(!window.editSessionActive || currentProjectId!==data.projectId)return;
   setPendingBubble(false);
+  if(data.type==='edit_progress'){
+    // Aviso intermedio: el trabajo sigue en background, el chat queda bloqueado hasta el cierre.
+    appendChatMessage('agent', data.text||'', false);
+    return;
+  }
   if(data.type==='edit_error'){
     appendChatMessage('agent', data.text||'Ocurrió un error en la sesión de cambios.', false);
     setUiLocked(false);

@@ -64,6 +64,13 @@ export function buildWebEditCommand(project: StoredProject): string {
   return `cambios ${workspaceUserId(project.userId)} ${projectName}`.trim();
 }
 
+// El job en background agrega el token "segundo-plano" para que el motor distinga
+// una llamada de trabajo (ejecuta lo pendiente, en silencio) de la consulta del
+// cliente (el chat de Cambios, que usa buildWebEditCommand sin token).
+export function buildWebEditJobCommand(project: StoredProject): string {
+  return `${buildWebEditCommand(project)} segundo-plano`;
+}
+
 export function appendWebAttachmentToPrompt(text: string, attachment?: StoredChatAttachment | null) {
   if (!attachment) return text;
   return `${text.trim()}\n\nLogo adjunto por el cliente:\n${attachment.projectPath}`;

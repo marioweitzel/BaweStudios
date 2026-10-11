@@ -45,6 +45,7 @@ type EditJobDeps = {
   hostBackgroundMaxAttempts: number;
   hostRuntime: HostRuntime;
   notifyEditFinished: (args: { project: StoredProject; userId: string; sessionId?: string | null }) => Promise<void>;
+  notifyEditProgress?: (args: { project: StoredProject; userId: string; sessionId?: string | null }) => Promise<void>;
   readDb: () => { projects: StoredProject[] };
   rebuildPreview: (args: { project: StoredProject; userId: string; sessionId?: string | null }) => Promise<void>;
   recordHostTurnEvent: (event: HostTurnEvent) => void;
@@ -217,6 +218,9 @@ export function createEditJobService(deps: EditJobDeps) {
         eventType: 'edit_background.contract.partial',
         payload: { attempt, contract: isEditPartialContract(responseText) ? 'edit_marker' : 'extension_intake_text' }
       });
+      if (isEditPartialContract(responseText) && deps.notifyEditProgress) {
+        await deps.notifyEditProgress({ project, userId, sessionId });
+      }
       return 'continue';
     }
 
@@ -235,6 +239,14 @@ export function createEditJobService(deps: EditJobDeps) {
         finished: true
       });
       deps.recordHostTurnEvent({ projectId, userId, sessionId, eventType: 'edit_background.contract.final', payload: { attempt } });
+      return 'done';
+    }
+
+    // Job sin trabajo pendiente: el motor contesta una frase corta sin ningun
+    // marcador [[BAWE_CAMBIOS_*]]. No es un fallo ni un cierre (sin mail).
+    if (!/\[\[BAWE_CAMBIOS_/.test(responseText) && responseText.trim().length < 400) {
+      await deps.upsertHostJob({ projectId, userId, sessionId, status: 'edit_done', command, response: responseText, attempts: attempt, finished: true });
+      deps.recordHostTurnEvent({ projectId, userId, sessionId, eventType: 'edit_background.contract.noop', payload: { attempt, response: responseText.slice(0, 300) } });
       return 'done';
     }
 

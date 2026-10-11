@@ -26,7 +26,7 @@ import { createProjectRegistryService } from './services/projectRegistryService'
 import { createProjectStateService } from './services/projectStateService';
 import { createProjectViewService } from './services/projectViewService';
 import { createMysqlStore } from './store/mysqlStore';
-import { buildWebContinuationCommand, buildWebEditCommand } from './routers/web/webCommands';
+import { buildWebContinuationCommand, buildWebEditJobCommand } from './routers/web/webCommands';
 import { registerWebHttpRoutes } from './routers/web/httpRoutes';
 import { registerWebSocketFlow } from './routers/web/webSocketFlow';
 import { createSecurityStrikeService } from './services/securityStrikeService';
@@ -248,7 +248,13 @@ async function finalizeProjectDelivery(args: {
 // del lado del motor antes de emitir "Edición finalizada.". Esto solo avisa:
 // via la room del usuario (por si tiene una pestaña abierta) y via el evento
 // de auditoria.
+const lastEditMailAt = new Map<string, number>();
+
 async function notifyEditFinished(args: { project: StoredProject; userId: string; sessionId?: string | null }) {
+  // Un FINALIZADA repetido (job reanudado, doble senal) no debe mandar dos mails.
+  const lastMail = lastEditMailAt.get(args.project.id) || 0;
+  const duplicate = Date.now() - lastMail < 120000;
+  lastEditMailAt.set(args.project.id, Date.now());
   recordHostTurnEvent({
     projectId: args.project.id,
     userId: args.userId,
@@ -262,7 +268,24 @@ async function notifyEditFinished(args: { project: StoredProject; userId: string
     text: 'Tu edición fue aplicada. Los cambios ya están disponibles en "Proyectos" -> "Preview".'
   });
   io.to(args.userId).emit('project:updated', publicProject(args.project));
-  void notifyDeliveryFinished({ kind: 'edit', project: args.project, userId: args.userId, sessionId: args.sessionId });
+  if (!duplicate) void notifyDeliveryFinished({ kind: 'edit', project: args.project, userId: args.userId, sessionId: args.sessionId });
+}
+
+// Aviso intermedio con cola mixta: el Ajuste ya quedo aplicado pero el job sigue
+// con la Extension. No es el cierre: el chat sigue bloqueado y el mail sale al final.
+async function notifyEditProgress(args: { project: StoredProject; userId: string; sessionId?: string | null }) {
+  recordHostTurnEvent({
+    projectId: args.project.id,
+    userId: args.userId,
+    sessionId: args.sessionId || null,
+    eventType: 'edit.notify_progress',
+    payload: {}
+  });
+  io.to(args.userId).emit('edit-event', {
+    type: 'edit_progress',
+    projectId: args.project.id,
+    text: 'Ya aplicamos el primer cambio. Seguimos con el resto y te avisamos cuando todo esté listo.'
+  });
 }
 
 function closeInterviewFromFilesystem(project: StoredProject, userId: string) {
@@ -351,7 +374,8 @@ const {
   recoverEditJobsOnStartup,
   startEditJob
 } = createEditJobService({
-  buildEditCommand: buildWebEditCommand,
+  buildEditCommand: buildWebEditJobCommand,
+  notifyEditProgress,
   getActiveEditJobs,
   getHostJob,
   hostBackgroundMaxAttempts: env.hostBackgroundMaxAttempts,
