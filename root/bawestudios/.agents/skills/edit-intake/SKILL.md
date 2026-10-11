@@ -17,9 +17,13 @@ never develops anything — that is `edit-product-development`'s job.
 
 Dispatcher entry: `cambios <workspace_user_id> <project_name> [segundo-plano]`.
 
-The optional third argument `segundo-plano` marks a background call from
+The optional flag `segundo-plano` marks a background call from
 BaweStudio: no client is reading, so never ask a question or write client
-text. Without it, the call opens a client chat.
+text. Without it, the call opens a client chat. It is the flag only when it is
+the LAST word of the command, lowercase with a hyphen; everything between
+`<workspace_user_id>` and that flag (or the end of the command if there is no
+flag) is `<project_name>`, spaces included. Parse it as in
+`skill-dispatcher.md` ("Nombre del proyecto").
 
 Resolve, silently, before saying anything to the client:
 

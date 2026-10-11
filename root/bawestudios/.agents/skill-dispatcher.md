@@ -12,8 +12,10 @@ Interpretar exclusivamente la entrada inicial del usuario y redirigir a la prime
 - `continuar <workspace_user_id> <project_name>` → identificar y retomar el proyecto indicado. Leer y ejecutar `[WORKSPACE_ROOT]/.agents/skills/project-context-detector/SKILL.md`.
 - `eliminar <workspace_user_id> <project_name>` → eliminar el proyecto indicado. Leer y ejecutar `[WORKSPACE_ROOT]/.agents/skills/project-context-detector/SKILL.md`.
 - `soporte <workspace_user_id> <project_name>` → modo de soporte de solo lectura para un proyecto ya entregado. Leer y ejecutar `[WORKSPACE_ROOT]/.agents/skills/client-support-assistant/SKILL.md`.
-- `cambios <workspace_user_id> <project_name> [segundo-plano]` → recibir o procesar pedidos de cambio sobre un proyecto ya entregado. Leer y ejecutar `[WORKSPACE_ROOT]/.agents/skills/edit-intake/SKILL.md`. El tercer argumento `segundo-plano` lo manda BaweStudio solo en el trabajo de fondo (nadie lo lee); el cliente nunca lo escribe.
+- `cambios <workspace_user_id> <project_name> [segundo-plano]` → recibir o procesar pedidos de cambio sobre un proyecto ya entregado. Leer y ejecutar `[WORKSPACE_ROOT]/.agents/skills/edit-intake/SKILL.md`. La bandera final `segundo-plano` la manda BaweStudio solo en el trabajo de fondo (nadie lo lee); el cliente nunca lo escribe.
 - Cualquier otra entrada inicial → responder `Comando inválido` y detener la ejecución.
+
+Nombre del proyecto: `<project_name>` es todo el texto entre `<workspace_user_id>` y el final del comando, y puede tener espacios, tildes y puntos (por ejemplo `Mantenimiento Ágil Ñandú`). La única excepción es `segundo-plano`: es la bandera solo si es la ÚLTIMA palabra del comando, en minúsculas y con guion; se quita del nombre y todo lo que queda entre el workspace y esa bandera es el nombre del proyecto. Si `segundo-plano` no es la última palabra, es parte del nombre. Nunca tomes un solo token como nombre.
 
 ## ENTRADA Y SALIDA DEL CLIENTE
 
