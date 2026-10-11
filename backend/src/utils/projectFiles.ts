@@ -75,6 +75,25 @@ function queueFileHasOpenWork(project: StoredProject, relativePath: string, labe
   }
 }
 
+// Pista de Extension con la entrevista terminada pero sin cola todavia (contexto,
+// PRD o gate a medias, por ejemplo si el job murio): mismo criterio que edit-intake,
+// "Siguiente pregunta pendiente" distinta de E1-E7 y cola ausente o sin DONE. Con la
+// entrevista todavia pendiente (E1-E7) espera al cliente: no es trabajo de job.
+function extensionWorkPendingWithoutQueue(project: StoredProject): boolean {
+  try {
+    const logPath = safeProjectRelativePath(project, path.join('.bawe', 'extension-log-preguntas.md'), 'log de extension');
+    if (!fs.existsSync(logPath)) return false;
+    const log = fs.readFileSync(logPath, 'utf8').replace(/^﻿/, '');
+    const next = /Siguiente pregunta pendiente:s*`?([A-Za-z0-9_]+)/.exec(log)?.[1];
+    if (!next || /^E[1-7]$/.test(next)) return false;
+    const queuePath = safeProjectRelativePath(project, path.join('.bawe', 'extension-queue.json'), 'cola de extension');
+    if (!fs.existsSync(queuePath)) return true;
+    return JSON.parse(fs.readFileSync(queuePath, 'utf8').replace(/^﻿/, ''))?.status !== 'DONE';
+  } catch {
+    return false;
+  }
+}
+
 // edit-intake/extension-context-detector ya usan este mismo criterio del
 // lado motor (status de la cola distinto de DONE = todavia queda trabajo
 // sin terminar) para decidir si saltan directo a *-product-development en
@@ -87,6 +106,9 @@ export function detectPendingMotorQueueWork(project: StoredProject): PendingMoto
   }
   if (queueFileHasOpenWork(project, path.join('.bawe', 'extension-queue.json'), 'cola de extension')) {
     return { type: 'extension', reason: 'extension_queue_pending' };
+  }
+  if (extensionWorkPendingWithoutQueue(project)) {
+    return { type: 'extension', reason: 'extension_work_pending' };
   }
   return null;
 }
