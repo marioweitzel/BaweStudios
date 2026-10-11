@@ -21,6 +21,7 @@ import { createExecutionStateService } from './services/executionStateService';
 import { createLiveProjectUpdatesService } from './services/liveProjectUpdatesService';
 import { createProjectDeletionService } from './services/projectDeletionService';
 import { createPreviewRebuildService } from './services/previewRebuildService';
+import { installProcessGuards } from './utils/processGuards';
 import { createProjectRegistryService } from './services/projectRegistryService';
 import { createProjectStateService } from './services/projectStateService';
 import { createProjectViewService } from './services/projectViewService';
@@ -341,6 +342,8 @@ const {
   updateProject,
   upsertHostJob
 });
+
+installProcessGuards();
 
 const { rebuildPreview } = createPreviewRebuildService({ recordHostTurnEvent });
 

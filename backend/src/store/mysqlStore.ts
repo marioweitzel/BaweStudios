@@ -76,6 +76,12 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
       database: config.database,
       waitForConnections: true,
       connectionLimit: 10,
+      // MySQL cierra las conexiones inactivas (wait_timeout) sin avisar y el pool
+      // entregaba una muerta (ECONNRESET): se mantienen vivas y las ociosas se reciclan antes.
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 10000,
+      maxIdle: 2,
+      idleTimeout: 60000,
       namedPlaceholders: false
     });
 
@@ -580,13 +586,14 @@ export function createMysqlStore(config: MysqlStoreConfig, deps: MysqlStoreDeps)
     finished_at: string | null;
   }) | null> {
     if (!dbPool) return null;
-    const [rows] = await dbPool.query<RowDataPacket[]>(
+    const pool = dbPool;
+    const [rows] = await withDbRetry(() => pool.query<RowDataPacket[]>(
       `SELECT project_id,user_id,bs_session_id,status,command,attempts,resume_at,finished_at
        FROM host_jobs
        WHERE project_id = ?
        LIMIT 1`,
       [projectId]
-    );
+    ));
     return (rows[0] as any) || null;
   }
 
