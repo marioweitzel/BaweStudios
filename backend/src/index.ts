@@ -284,7 +284,7 @@ async function notifyEditProgress(args: { project: StoredProject; userId: string
   io.to(args.userId).emit('edit-event', {
     type: 'edit_progress',
     projectId: args.project.id,
-    text: 'Ya aplicamos el primer cambio. Seguimos con el resto y te avisamos cuando todo esté listo.'
+    text: 'Ya aplicamos una parte de tus cambios. Estamos terminando el resto y te avisamos cuando todo esté listo.'
   });
 }
 
