@@ -36,7 +36,7 @@ function extractHostText(rawBody: string) {
 // Docker. Este proyecto le pasa la ruta ya traducida a como se ve DESDE EL
 // HOST -- project.project_path es la ruta de adentro del contenedor
 // (BAWE_PROJECTS_ROOT), nunca una ruta real en el filesystem del host.
-function toHostProjectPath(projectPath: string): string | null {
+export function toHostProjectPath(projectPath: string): string | null {
   const hostRoot = env.dockerTeardown.hostProjectsRoot;
   if (!hostRoot) return null;
   const rel = path.relative(env.projectsRoot, projectPath);

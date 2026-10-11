@@ -20,6 +20,7 @@ import { createInactivityDeletionService } from './services/inactivityDeletionSe
 import { createExecutionStateService } from './services/executionStateService';
 import { createLiveProjectUpdatesService } from './services/liveProjectUpdatesService';
 import { createProjectDeletionService } from './services/projectDeletionService';
+import { createPreviewRebuildService } from './services/previewRebuildService';
 import { createProjectRegistryService } from './services/projectRegistryService';
 import { createProjectStateService } from './services/projectStateService';
 import { createProjectViewService } from './services/projectViewService';
@@ -341,6 +342,8 @@ const {
   upsertHostJob
 });
 
+const { rebuildPreview } = createPreviewRebuildService({ recordHostTurnEvent });
+
 const {
   recoverEditJobsOnStartup,
   startEditJob
@@ -352,6 +355,7 @@ const {
   hostRuntime,
   notifyEditFinished,
   readDb,
+  rebuildPreview,
   recordHostTurnEvent,
   upsertHostJob
 });

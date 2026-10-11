@@ -101,6 +101,60 @@ async function teardown(projectPath) {
   return { ok: true, composeFile, volumesRemoved: true };
 }
 
+// Reconstruye el preview de un proyecto tras una edicion (docker compose up
+// --build). El compose exige variables (${VAR:?}) que no estan guardadas en el
+// proyecto: sus valores se toman de los contenedores que ya corren (mismo
+// nombre de variable), asi la configuracion queda identica y Compose solo
+// recrea los servicios cuya imagen cambio -- no toca mysql ni cambia las
+// claves del backend. Si una variable no existe en ningun contenedor se usa
+// un relleno (solo para servicios sin esa variable). Los valores nunca se
+// loguean ni se devuelven.
+async function runningContainerEnv(projectPath, composeFile) {
+  const merged = {};
+  const ids = await listComposeContainerIds(projectPath, composeFile);
+  if (ids.length === 0) return merged;
+  const { stdout } = await execFileAsync('docker', ['inspect', '--format', '{{json .Config.Env}}', ...ids]);
+  for (const line of stdout.split('\n')) {
+    if (!line.trim()) continue;
+    for (const entry of JSON.parse(line) || []) {
+      const idx = entry.indexOf('=');
+      if (idx > 0) merged[entry.slice(0, idx)] = entry.slice(idx + 1);
+    }
+  }
+  return merged;
+}
+
+async function rebuildPreview(projectPath) {
+  if (!isInsideProjectsRoot(projectPath)) {
+    return { ok: false, error: `projectPath fuera de ${RESOLVED_PROJECTS_ROOT}, rechazado` };
+  }
+  const composeFile = 'docker-compose-preview.yml';
+  if (!fs.existsSync(path.join(projectPath, composeFile))) {
+    return { ok: true, skipped: true, reason: 'no_preview_compose' };
+  }
+  const known = await runningContainerEnv(projectPath, composeFile);
+  const vars = {};
+  for (let attempt = 0; attempt < 30; attempt++) {
+    try {
+      await execFileAsync(
+        'docker',
+        ['compose', '--env-file', '/dev/null', '-f', composeFile, 'up', '-d', '--build', '--wait', '--wait-timeout', '240'],
+        { cwd: projectPath, env: { ...process.env, ...vars }, maxBuffer: 16 * 1024 * 1024, timeout: 900000 }
+      );
+      return { ok: true, composeFile };
+    } catch (err) {
+      const text = `${err && err.stderr ? err.stderr : ''}${err && err.message ? err.message : ''}`;
+      const match = /required variable ([A-Za-z0-9_]+) is missing a value/.exec(text);
+      if (!match || vars[match[1]] !== undefined) {
+        // sin valores en el mensaje: solo las ultimas lineas del error de Compose
+        return { ok: false, error: text.split('\n').filter(Boolean).slice(-4).join(' | ').slice(0, 600) };
+      }
+      vars[match[1]] = known[match[1]] !== undefined ? known[match[1]] : 'x';
+    }
+  }
+  return { ok: false, error: 'demasiadas variables obligatorias sin definir en el compose' };
+}
+
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(status, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) });
@@ -134,6 +188,22 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const result = await teardown(projectPath);
+      sendJson(res, result.ok ? 200 : 422, result);
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: err instanceof Error ? err.message : String(err) });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/rebuild-preview') {
+    try {
+      const body = await readJsonBody(req);
+      const projectPath = body && body.projectPath;
+      if (!projectPath || typeof projectPath !== 'string') {
+        sendJson(res, 400, { ok: false, error: 'falta "projectPath" en el body' });
+        return;
+      }
+      const result = await rebuildPreview(projectPath);
       sendJson(res, result.ok ? 200 : 422, result);
     } catch (err) {
       sendJson(res, 500, { ok: false, error: err instanceof Error ? err.message : String(err) });

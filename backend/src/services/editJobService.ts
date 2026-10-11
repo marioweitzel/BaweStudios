@@ -46,6 +46,7 @@ type EditJobDeps = {
   hostRuntime: HostRuntime;
   notifyEditFinished: (args: { project: StoredProject; userId: string; sessionId?: string | null }) => Promise<void>;
   readDb: () => { projects: StoredProject[] };
+  rebuildPreview: (args: { project: StoredProject; userId: string; sessionId?: string | null }) => Promise<void>;
   recordHostTurnEvent: (event: HostTurnEvent) => void;
   upsertHostJob: (args: UpsertHostJobArgs) => Promise<any>;
 };
@@ -207,6 +208,7 @@ export function createEditJobService(deps: EditJobDeps) {
     // EDIT_PARTIAL_MARKER/EDIT_FINISHED_MARKER que edit-product-development,
     // asi que no hace falta distinguir mas alla de este check.
     if (isEditPartialContract(responseText) || isPartialContract(responseText)) {
+      await deps.rebuildPreview({ project, userId, sessionId });
       await deps.upsertHostJob({ projectId, userId, sessionId, status: 'edit_partial_completed', command, response: responseText, attempts: attempt });
       deps.recordHostTurnEvent({
         projectId,
@@ -220,6 +222,7 @@ export function createEditJobService(deps: EditJobDeps) {
 
     if (isEditFinishedContract(responseText)) {
       await deps.upsertHostJob({ projectId, userId, sessionId, status: 'edit_final_received', command, response: responseText, attempts: attempt, finished: true });
+      await deps.rebuildPreview({ project, userId, sessionId });
       await deps.notifyEditFinished({ project, userId, sessionId });
       await deps.upsertHostJob({
         projectId,

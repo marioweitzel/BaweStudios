@@ -39,6 +39,8 @@ export const env = {
   // filesystem, no el de adentro del contenedor.
   dockerTeardown: {
     url: process.env.DOCKER_TEARDOWN_URL || 'http://host.docker.internal:5011/teardown',
+    rebuildUrl: process.env.DOCKER_REBUILD_PREVIEW_URL
+      || (process.env.DOCKER_TEARDOWN_URL || 'http://host.docker.internal:5011/teardown').replace(/\/teardown$/, '/rebuild-preview'),
     hostProjectsRoot: process.env.BAWE_HOST_PROJECTS_ROOT || ''
   },
   // Aviso por correo "tu proyecto/edicion finalizo" (solo VPS). Postfix corre
