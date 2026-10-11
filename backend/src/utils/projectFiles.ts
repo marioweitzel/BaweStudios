@@ -84,7 +84,7 @@ function extensionWorkPendingWithoutQueue(project: StoredProject): boolean {
     const logPath = safeProjectRelativePath(project, path.join('.bawe', 'extension-log-preguntas.md'), 'log de extension');
     if (!fs.existsSync(logPath)) return false;
     const log = fs.readFileSync(logPath, 'utf8').replace(/^﻿/, '');
-    const next = /Siguiente pregunta pendiente:s*`?([A-Za-z0-9_]+)/.exec(log)?.[1];
+    const next = /Siguiente pregunta pendiente:\s*`?([A-Za-z0-9_]+)/.exec(log)?.[1];
     if (!next || /^E[1-7]$/.test(next)) return false;
     const queuePath = safeProjectRelativePath(project, path.join('.bawe', 'extension-queue.json'), 'cola de extension');
     if (!fs.existsSync(queuePath)) return true;
