@@ -15,7 +15,11 @@ never develops anything — that is `edit-product-development`'s job.
 
 ## Entry
 
-Dispatcher entry: `cambios <workspace_user_id> <project_name>`.
+Dispatcher entry: `cambios <workspace_user_id> <project_name> [segundo-plano]`.
+
+The optional third argument `segundo-plano` marks a background call from
+BaweStudio: no client is reading, so never ask a question or write client
+text. Without it, the call opens a client chat.
 
 Resolve, silently, before saying anything to the client:
 
@@ -28,22 +32,46 @@ stop. If it exists but has no `delivery/[project_name]/` package yet, tell
 the client that change requests are only available once a project has been
 delivered, and stop.
 
-Then check, in order:
+Then resolve the state of both tracks:
 
-1. `.bawe/edit-queue.json`: if it has at least one item with
-   `status: PENDING` or `status: ACTIVE`, do not run the intake loop below
-   — read and execute
-   `[WORKSPACE_ROOT]/.agents/skills/edit-product-development/SKILL.md`
-   instead. Those items are already scoped and waiting to be built.
-2. Any Extensión-track artifact — any of `.bawe/extension-log-preguntas.md`,
-   `.bawe/extension-context.md`, `.bawe/extension-prd.md`,
-   `.bawe/extension-app-structure.json`, `.bawe/extension-queue.json`: if
-   any exists, do not run the intake loop below — read and execute
-   `[WORKSPACE_ROOT]/.agents/skills/extension-context-detector/SKILL.md`
-   instead. It resolves exactly where that request is and what comes next;
-   this skill does not need to know the layer itself.
-3. If neither of the above applies, run the intake loop below to collect
-   new items.
+- **Ajuste work pending**: `.bawe/edit-queue.json` has at least one item with
+  `status: PENDING` or `status: ACTIVE`.
+- **Extensión track open**: `.bawe/extension-log-preguntas.md` exists and
+  `.bawe/extension-queue.json` is absent or its `status` is not `DONE`. Read
+  only the `Estado de entrevista` block of that log:
+  - `Siguiente pregunta pendiente` is `E1` to `E7`: the interview still needs
+    the client (**Extensión interview pending**).
+  - Any other value (for example `EXTENSION_CONTEXT_GENERATOR`): the
+    interview is done and the rest runs without the client (**Extensión work
+    pending**).
+- **Job work pending** = Ajuste work pending or Extensión work pending.
+
+Then, by call mode:
+
+**With `segundo-plano`** (background job). Never ask questions, never write
+client text. In this order:
+
+1. Ajuste work pending: read and execute
+   `[WORKSPACE_ROOT]/.agents/skills/edit-product-development/SKILL.md`.
+2. Else Extensión work pending: read and execute
+   `[WORKSPACE_ROOT]/.agents/skills/extension-context-detector/SKILL.md`; it
+   resolves exactly where that request is and what comes next.
+3. Else (nothing to do, or only an Extensión interview pending, which waits
+   for the client): reply with a short plain sentence and no
+   `[[BAWE_CAMBIOS_*]]` marker.
+
+**Without `segundo-plano`** (client chat), in this order:
+
+1. Job work pending: do not execute it, do not run
+   `extension-context-detector`, do not create or edit any file. Reply,
+   inside the markers, exactly: `Estamos terminando tu edición anterior.
+   Cuando esté lista podrás pedir más cambios.` and stop. Never emit
+   `[[BAWE_CAMBIOS_EDICION_PARCIAL]]`, `[[BAWE_CAMBIOS_EDICION_FINALIZADA]]`
+   or `Parcial completado.` here.
+2. Extensión interview pending: read and execute
+   `[WORKSPACE_ROOT]/.agents/skills/extension-context-detector/SKILL.md`;
+   the interview continues with the client.
+3. Otherwise run the intake loop below to collect new items.
 
 ## Language
 
@@ -152,15 +180,21 @@ If at least one item was classified as Ajuste:
 4. Record a short entry in `task-log.md` noting a change request was
    queued, tagged `[cambios]` so it is distinguishable from build-phase
    entries.
-5. Tell the client, inside the markers, exactly:
+5. If no Extensión item was collected in this conversation, tell the client,
+   inside the markers, exactly:
 
 ```text
 Estamos realizando la edición. Al finalizar podrás ver los cambios en
 "Proyectos" -> "Preview".
 ```
 
-6. Immediately after the closing marker, on its own line, emit this exact
-   out-of-band signal — never inside the client-facing markers, never
+   If an Extensión item was also collected, do not say this now: the
+   Extensión interview continues in this same turn and its closing message
+   (`extension-interview-questions.md`) tells the client that everything is
+   being done.
+
+6. If no Extensión item was collected in this conversation: immediately after
+   the closing marker, on its own line, emit this exact out-of-band signal — never inside the client-facing markers, never
    translated, never paraphrased:
 
 ```text
@@ -173,6 +207,10 @@ Estamos realizando la edición. Al finalizar podrás ver los cambios en
    without waiting for anything from the client. Do not rely on the
    client-facing message text for this — that wording may change over
    time, this marker must not.
+
+   If an Extensión item was also collected, do not emit it now: the
+   Extensión interview emits it together with its own signal at its close, so
+   the background job never starts in the middle of that interview.
 7. Stop here — unless an Extensión item was also collected in this same
    conversation, in which case continue into "Handing Off An Extensión"
    below instead of stopping. Either way, do not start developing the

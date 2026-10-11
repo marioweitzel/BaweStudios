@@ -137,7 +137,8 @@ unmodified (no markdown bold around it, no translation, no paraphrase):
   `cambios <workspace_user_id> <project_name>` call resumes it (never
   `continuar`, that routes to the original build pipeline).
 
-- Every item in `.bawe/edit-queue.json` is `DONE`:
+- Every item in `.bawe/edit-queue.json` is `DONE` AND there is no Extensión
+  work pending (see below):
 
 ```text
 [[BAWE_CAMBIOS_EDICION_FINALIZADA]]
@@ -145,6 +146,14 @@ unmodified (no markdown bold around it, no translation, no paraphrase):
 
   This means the entire request is finished — BaweStudio uses it to notify
   the client, with no further `cambios` call needed.
+
+- Every item in `.bawe/edit-queue.json` is `DONE` but Extensión work is still
+  pending: emit `[[BAWE_CAMBIOS_EDICION_PARCIAL]]`, never the finished marker.
+  The next `cambios ... segundo-plano` call continues with that track.
+  Extensión work is pending when `.bawe/extension-log-preguntas.md` exists,
+  `.bawe/extension-queue.json` is absent or its `status` is not `DONE`, and
+  the `Siguiente pregunta pendiente` of that log is not `E1` to `E7` (an
+  interview that still needs the client is not job work).
 
 Never write both markers in the same response. Never write a marker whose
 condition is not actually true. These are deliberately different tokens

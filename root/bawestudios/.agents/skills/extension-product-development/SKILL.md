@@ -170,7 +170,10 @@ does not matter, as long as the exact bracketed text is present unmodified
   `edit-intake` → `extension-context-detector` (never `continuar`, that
   routes to the original build pipeline).
 
-- No `PENDING` objective remains and "Refreshing Delivery" completed:
+- No `PENDING` objective remains, "Refreshing Delivery" completed and
+  `.bawe/edit-queue.json` has no item with `status: PENDING` or
+  `status: ACTIVE` (if one remains, emit `[[BAWE_CAMBIOS_EDICION_PARCIAL]]`
+  instead; the next `cambios ... segundo-plano` call picks it up):
 
 ```text
 [[BAWE_CAMBIOS_EDICION_FINALIZADA]]

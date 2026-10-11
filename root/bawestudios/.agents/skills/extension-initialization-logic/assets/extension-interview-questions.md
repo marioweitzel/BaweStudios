@@ -63,10 +63,16 @@ Cuando E7 esté respondida (o marcada `NO_APLICA` con justificación clara):
 3. Si confirma, actualizar `Siguiente pregunta pendiente` a
    `EXTENSION_CONTEXT_GENERATOR`. Decirle al cliente, dentro de los
    marcadores, algo como "Genial, ya tengo todo lo que necesito. Estamos
-   preparando tu extensión, te avisamos cuando esté lista." Inmediatamente
-   después del marcador de cierre, en su propia línea, emitir esta señal
-   exacta fuera de banda — nunca dentro de los marcadores, nunca traducida,
-   nunca parafraseada:
+   preparando tu extensión, te avisamos cuando esté lista." Si
+   `.bawe/edit-queue.json` tiene algún ítem `PENDING`, decir en cambio:
+   "Genial, ya tengo todo lo que necesito. Estamos realizando tus cambios:
+   primero aplicamos el ajuste y a continuación el resto. Al finalizar podrás
+   ver todo en "Proyectos" -> "Preview"." Inmediatamente después del marcador
+   de cierre, en su propia línea, emitir esta señal exacta fuera de banda —
+   nunca dentro de los marcadores, nunca traducida, nunca parafraseada. Si
+   `.bawe/edit-queue.json` tiene algún ítem `PENDING`, emitir antes, en su
+   propia línea, `[[BAWE_CAMBIOS_COLA_LISTA]]` (el trabajo de fondo arranca
+   una sola vez, con las dos colas listas):
 
 ```text
 [[BAWE_CAMBIOS_EXTENSION_LISTA]]

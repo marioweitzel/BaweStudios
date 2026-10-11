@@ -12,7 +12,7 @@ Interpretar exclusivamente la entrada inicial del usuario y redirigir a la prime
 - `continuar <workspace_user_id> <project_name>` → identificar y retomar el proyecto indicado. Leer y ejecutar `[WORKSPACE_ROOT]/.agents/skills/project-context-detector/SKILL.md`.
 - `eliminar <workspace_user_id> <project_name>` → eliminar el proyecto indicado. Leer y ejecutar `[WORKSPACE_ROOT]/.agents/skills/project-context-detector/SKILL.md`.
 - `soporte <workspace_user_id> <project_name>` → modo de soporte de solo lectura para un proyecto ya entregado. Leer y ejecutar `[WORKSPACE_ROOT]/.agents/skills/client-support-assistant/SKILL.md`.
-- `cambios <workspace_user_id> <project_name>` → recibir o procesar pedidos de cambio sobre un proyecto ya entregado. Leer y ejecutar `[WORKSPACE_ROOT]/.agents/skills/edit-intake/SKILL.md`.
+- `cambios <workspace_user_id> <project_name> [segundo-plano]` → recibir o procesar pedidos de cambio sobre un proyecto ya entregado. Leer y ejecutar `[WORKSPACE_ROOT]/.agents/skills/edit-intake/SKILL.md`. El tercer argumento `segundo-plano` lo manda BaweStudio solo en el trabajo de fondo (nadie lo lee); el cliente nunca lo escribe.
 - Cualquier otra entrada inicial → responder `Comando inválido` y detener la ejecución.
 
 ## ENTRADA Y SALIDA DEL CLIENTE
