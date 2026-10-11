@@ -1181,7 +1181,13 @@ export function registerWebSocketFlow(io: SocketIOServer, deps: WebSocketFlowDep
       return;
     }
 
+    let lastEditErrorAt = 0;
+    let lastEditErrorText = '';
     const editSessionError = (text: string) => {
+      // El adaptador avisa el mismo fallo por dos caminos (mensaje y error): se muestra una sola vez.
+      if (text === lastEditErrorText && Date.now() - lastEditErrorAt < 5000) return;
+      lastEditErrorText = text;
+      lastEditErrorAt = Date.now();
       hostBusy = false;
       setExecutionState(safeProjectId, socketUser?.id, activeSessionId, 'IDLE', socket.id);
       socket.emit('host:pending', { pending: false });

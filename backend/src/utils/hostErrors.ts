@@ -9,5 +9,6 @@ export function clientSafeHostError(error: Error | string): string {
   }
   // Un error del LLM con datos internos (archivos, codigos de pregunta) no llega al cliente.
   if (containsInternalDetails(message)) return CLIENT_GENERIC_NOTICE;
-  return message.slice(0, 300);
+  // Cualquier otro mensaje es del motor o de BS ("Respuesta sin el formato esperado", etc.): nunca llega crudo al cliente.
+  return CLIENT_GENERIC_NOTICE;
 }

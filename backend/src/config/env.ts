@@ -85,7 +85,7 @@ export const DELIVERY_WARNING = 'Este archivo contiene la estructura y el codigo
 // esperado, excepcion no controlada) que deba mostrarse en el chat. Nunca
 // debe llegar al cliente el texto interno real (nombres de adaptador, HTTP,
 // nombres de contrato) — eso solo queda logueado server-side.
-export const GENERIC_HOST_ERROR_MESSAGE = 'Por favor, reinicia la pagina e intenta nuevamente. Desde ya te pedimos disculpas por el inconveniente.';
+export const GENERIC_HOST_ERROR_MESSAGE = 'Disculpá, tuvimos un inconveniente. Por favor, intentá de nuevo en unos minutos.';
 
 // Marcadores que envuelven el texto real para el cliente en respuestas
 // client-facing del motor (soporte, cambios); todo lo que el modelo narre
