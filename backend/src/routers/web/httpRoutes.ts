@@ -313,7 +313,7 @@ export function registerWebHttpRoutes(app: Application, deps: RegisterWebHttpRou
     const project = deps.readDb().projects.find((p: StoredProject) => p.id === req.params.id && p.userId === (req as any).user.id);
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
     const filename = path.basename(req.params.filename);
-    if (!/^logo\.(png|jpg|jpeg|webp|svg)$/i.test(filename)) return res.status(404).json({ error: 'Archivo no encontrado' });
+    if (!/^(logo|edit_\d+)\.(png|jpg|jpeg|webp|svg)$/i.test(filename)) return res.status(404).json({ error: 'Archivo no encontrado' });
     const filePath = safeProjectFilePath(project, filename);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Archivo no encontrado' });
     res.sendFile(filePath);
